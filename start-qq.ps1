@@ -1,7 +1,7 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 $taskRoot=$PSScriptRoot
-$taskSettings=Get-Content -Raw -LiteralPath (Join-Path $taskRoot 'settings.local.json') | ConvertFrom-Json
-$taskBotRuntime=Get-Content -Raw -LiteralPath (Join-Path $taskRoot 'bot-runtime.local.json') | ConvertFrom-Json
+$taskSettings=Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $taskRoot 'settings.local.json') | ConvertFrom-Json
+$taskBotRuntime=Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $taskRoot 'bot-runtime.local.json') | ConvertFrom-Json
 $taskVoicePython=$taskSettings.python
 if (-not [System.IO.Path]::IsPathRooted($taskVoicePython)) {$taskVoicePython=Join-Path $taskRoot $taskVoicePython}
 $taskLogs=Join-Path $taskRoot 'logs/qq'
@@ -18,7 +18,7 @@ if (-not (Test-TaskPort 18766)) {
 }
 $taskClientConfigPath=Join-Path $taskRoot 'configs/qq-client.local.json'
 if (Test-Path -LiteralPath $taskClientConfigPath) {
-  $taskClient=Get-Content -Raw -LiteralPath $taskClientConfigPath | ConvertFrom-Json
+  $taskClient=Get-Content -Raw -Encoding UTF8 -LiteralPath $taskClientConfigPath | ConvertFrom-Json
   $taskOwnClient=Get-CimInstance Win32_Process -Filter "Name='QQ.exe'" | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($taskClient.client_root+'\',[System.StringComparison]::OrdinalIgnoreCase) }
   if (-not $taskOwnClient) {
     $env:DEEPSEEK_QQ_DATA_DIR=$taskClient.qq_data
