@@ -1,4 +1,4 @@
-param([switch]$CheckOnly,[switch]$NoOpen,[switch]$NoGui,[switch]$LoadFunctionsOnly)
+﻿param([switch]$CheckOnly,[switch]$NoOpen,[switch]$NoGui,[switch]$LoadFunctionsOnly)
 $ErrorActionPreference='Stop'
 $script:TaskRoot=$PSScriptRoot
 $script:LauncherSteps=New-Object System.Collections.Generic.List[object]
