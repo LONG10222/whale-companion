@@ -56,9 +56,14 @@ class BatchTests(unittest.TestCase):
         self.chat.prepare=lambda peer,text,**kw:self.seen.append((text,kw)) or {'reply':'收到','attachments':[],'tools':[]}
         self.bridge=QQBridge(self.root,self.chat);self.bridge.configure(True,'12345678',['87654321'],True);self.bridge.connected=True;self.bridge.login_id='12345678';self.bridge.epoch='epoch';self.bridge.batcher.quiet=.06
         self.bridge.call=lambda *a,**k:self.sent.append((a,k)) or {'message_id':42}
-    def tearDown(self):self.bridge.pool.shutdown(wait=True);self.tmp.cleanup()
+        self.bridge.batcher.condition.acquire();self.receive_locked=True
+    def tearDown(self):
+        if self.receive_locked:self.bridge.batcher.condition.release();self.receive_locked=False
+        self.bridge.pool.shutdown(wait=True);self.tmp.cleanup()
     def obj(self,mid,text):return {'message_type':'private','sub_type':'friend','self_id':'12345678','user_id':'87654321','message_id':mid,'message':[{'type':'text','data':{'text':text}}]}
-    def settle(self):self.bridge.pool.submit(lambda:None).result(3)
+    def settle(self):
+        if self.receive_locked:self.bridge.batcher.condition.release();self.receive_locked=False
+        self.bridge.pool.submit(lambda:None).result(10)
     def test_burst_is_one_reply_and_every_source_is_deduplicated(self):
         for mid,t in [('1','我想问'),('2','一件事情'),('3','你在吗')]:self.assertTrue(self.bridge.accept(self.obj(mid,t),'epoch'))
         self.settle();self.assertEqual([r[0] for r in self.seen],['我想问\n一件事情\n你在吗']);self.assertEqual(len(self.sent),1)
