@@ -81,15 +81,16 @@ class PersonaStore:
             self.path.parent.mkdir(parents=True,exist_ok=True)
             if self.path.exists():
                 self.backups.mkdir(exist_ok=True)
-                target=self.backups/(str(time.time_ns())+'-'+uuid.uuid4().hex[:8]+'.json');target.write_bytes(self.path.read_bytes())
-                owned=sorted(p for p in self.backups.glob('*.json') if re.fullmatch(r'\d+-[a-f0-9]{8}\.json',p.name))
+                owned=sorted((p for p in self.backups.glob('*.json') if re.fullmatch(r'\d+-[a-f0-9]{8}\.json',p.name)),key=lambda p:int(p.name.split('-',1)[0]))
+                sequence=max(time.time_ns(),max((int(p.name.split('-',1)[0]) for p in owned),default=0)+1)
+                target=self.backups/(str(sequence)+'-'+uuid.uuid4().hex[:8]+'.json');target.write_bytes(self.path.read_bytes());owned.append(target)
                 for old in owned[:-8]:old.unlink()
             stage=self.path.with_name('persona-'+uuid.uuid4().hex+'.tmp');stage.write_text(data,encoding='utf-8');stage.replace(self.path)
             self.last_good=card;self.error=''
         return card
     def restore(self):
         with self.lock:
-            files=sorted(p for p in self.backups.glob('*.json') if re.fullmatch(r'\d+-[a-f0-9]{8}\.json',p.name))
+            files=sorted((p for p in self.backups.glob('*.json') if re.fullmatch(r'\d+-[a-f0-9]{8}\.json',p.name)),key=lambda p:int(p.name.split('-',1)[0]))
             if not files:raise ValueError('还没有可恢复的人格版本。')
             return self.save(PersonaCard.model_validate_json(files[-1].read_text(encoding='utf-8')))
 

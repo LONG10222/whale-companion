@@ -19,7 +19,8 @@ class PersonaTests(unittest.TestCase):
         messages=memory.context('peer');self.assertIn('修改昵称',messages[0]['content']);self.assertIn('俏皮',messages[0]['content'])
         with memory.db() as db:self.assertEqual(db.execute('SELECT count(*) FROM messages').fetchone()[0],1)
     def test_restore_previous_card_and_bound_backup_count(self):
-        for i in range(12):self.store.save(PersonaCard(name='版本'+str(i)))
+        with patch('persona_store.time.time_ns',return_value=1000000000000000000):
+            for i in range(12):PersonaStore(self.root).save(PersonaCard(name='版本'+str(i)))
         self.assertEqual(len(list(self.store.backups.glob('*.json'))),8)
         self.assertEqual(self.store.restore().name,'版本10')
     def test_invalid_manual_edit_retains_last_valid_card(self):
