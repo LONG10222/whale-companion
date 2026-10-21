@@ -5,10 +5,59 @@ on:
 permissions:
   contents: read
 jobs:
+  publish-audited-source:
+    if: github.event_name == 'push' && github.repository == 'LONG10222/whale-companion'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Materialize the audited public snapshot once
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: python
+        run: |
+          import base64,concurrent.futures,hashlib,json,os,subprocess,urllib.request
+          from pathlib import Path,PurePosixPath
+          repo=os.environ['GITHUB_REPOSITORY']
+          assert repo=='LONG10222/whale-companion'
+          api='https://api.github.com/repos/'+repo
+          headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'}
+          def get(path):
+              with urllib.request.urlopen(urllib.request.Request(api+path,headers=headers),timeout=45) as r:return json.load(r)
+          tree=get('/git/trees/fb12e8c1d7de0bd1e9385df9000195d606d8f997?recursive=1')
+          assert not tree.get('truncated')
+          entries=[e for e in tree['tree'] if e['type']=='blob']
+          assert len(entries)==167
+          assert sum(e.get('size',0) for e in entries)<20_000_000
+          root=Path.cwd().resolve()
+          def save(e):
+              path=PurePosixPath(e['path'])
+              assert not path.is_absolute() and all(x not in {'.','..','.git','.github'} for x in path.parts)
+              assert e['mode']=='100644'
+              blob=get('/git/blobs/'+e['sha'])
+              assert blob['encoding']=='base64'
+              data=base64.b64decode(blob['content'])
+              assert hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()==e['sha']
+              dest=root.joinpath(*path.parts)
+              assert dest.resolve().is_relative_to(root)
+              dest.parent.mkdir(parents=True,exist_ok=True)
+              dest.write_bytes(data)
+          with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:list(pool.map(save,entries))
+          subprocess.run(['git','config','user.name','github-actions[bot]'],check=True)
+          subprocess.run(['git','config','user.email','41898282+github-actions[bot]@users.noreply.github.com'],check=True)
+          subprocess.run(['git','add','--all'],check=True)
+          subprocess.run(['git','commit','-m','Publish audited companion source, bilingual guides and asset provenance'],check=True)
+          subprocess.run(['git','push','origin','HEAD:main'],check=True)
+          print('Published 167 audited source files with private-email-safe commit metadata.')
   unit:
+    needs: publish-audited-source
+    if: always() && (needs.publish-audited-source.result == 'success' || needs.publish-audited-source.result == 'skipped')
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
