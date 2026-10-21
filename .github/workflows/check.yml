@@ -13,7 +13,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Materialize the audited public snapshot once
-        if: hashFiles('requirements.txt') == ''
         env:
           GH_TOKEN: ${{ github.token }}
         shell: python
