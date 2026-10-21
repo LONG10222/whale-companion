@@ -1,0 +1,7 @@
+torch==2.7.1+cu128
+torchaudio==2.7.1+cu128
+qwen-tts==0.1.1
+fastapi>=0.116,<1
+uvicorn>=0.35,<1
+psutil>=7,<8
+sherpa-onnx==1.13.8

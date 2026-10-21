@@ -1,0 +1,2 @@
+av==19.0.2
+# Existing local runtime also supplies Pillow, numpy, soundfile and sherpa-onnx.

@@ -1,0 +1,27 @@
+# Merge these sections into the generated xuqian13.tts-voice-plugin config.
+# The provider slot is named gsv2p upstream, but its URL points ONLY to this local speech service.
+[plugin]
+enabled = true
+config_version = "3.3.0"
+
+[general]
+default_backend = "gsv2p"
+timeout = 240
+max_text_length = 120
+use_replyer_rewrite = false
+use_base64_audio = true
+split_sentences = false
+send_error_messages = false
+
+[components]
+action_enabled = true
+command_enabled = true
+
+[gsv2p]
+api_url = "http://127.0.0.1:18765/v1/audio/speech"
+api_token = "COPY_LOCAL_TOKEN_FROM_settings.local.json"
+model = "dania-gptsovits"
+default_voice = "dania"
+response_format = "wav"
+speed = 1.0
+timeout = 240

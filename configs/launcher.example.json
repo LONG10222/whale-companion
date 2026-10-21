@@ -1,0 +1,8 @@
+{
+  "clash_exe": "C:/Program Files/Clash Verge/clash-verge.exe",
+  "chatgpt_app_id": "OpenAI.Codex_2p2nqsd0c76g0!App",
+  "chatgpt_package_prefix": "OpenAI.Codex_",
+  "google_probe_url": "https://www.google.com/generate_204",
+  "network_wait_seconds": 90,
+  "control_url": "http://127.0.0.1:18766/qq"
+}

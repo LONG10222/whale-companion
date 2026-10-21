@@ -1,0 +1,2 @@
+# Existing Python environment; native runtime pinned in local-learning-model-manifest.json.
+psutil==7.2.2

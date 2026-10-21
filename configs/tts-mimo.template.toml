@@ -1,0 +1,14 @@
+# Optional explicit cloud selection. Do not enable automatically when local synthesis fails.
+# Pricing checked 2026-10-20: official MiMo V2.5 TTS is time-limited free.
+[general]
+default_backend = "mimo"
+max_text_length = 120
+use_base64_audio = true
+split_sentences = false
+
+[mimo]
+api_url = "https://api.xiaomimimo.com/v1/chat/completions"
+api_key = "FILL_LOCALLY_DO_NOT_POST_IN_CHAT"
+model = "mimo-v2.5-tts"
+default_voice = "mimo_default"
+audio_format = "wav"

@@ -1,0 +1,20 @@
+{
+  "model_dir": "models/model",
+  "python": ".venv/Scripts/python.exe",
+  "host": "127.0.0.1",
+  "port": 18765,
+  "api_token": "GENERATED_BY_SETUP",
+  "idle_seconds": 60,
+  "worker_timeout_seconds": 240,
+  "gpu_memory_fraction": 0.4,
+  "min_free_vram_mib": 5120,
+  "max_text_chars": 120,
+  "max_audio_seconds": 55,
+  "cache_max_mib": 512,
+  "cache_ttl_hours": 24,
+  "voice": "Serena",
+  "cpu_threads": 6,
+  "kokoro_model_dir": "models/kokoro_model",
+  "dania_python": ".venv/Scripts/python.exe",
+  "dania_config": "dania.local.json"
+}
