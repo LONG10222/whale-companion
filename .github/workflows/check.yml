@@ -25,7 +25,7 @@ jobs:
           headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'}
           def get(path):
               with urllib.request.urlopen(urllib.request.Request(api+path,headers=headers),timeout=45) as r:return json.load(r)
-          tree=get('/git/trees/fb12e8c1d7de0bd1e9385df9000195d606d8f997?recursive=1')
+          tree=get('/git/trees/99657fadefce768656777bf8a0de8d87775fe0d4?recursive=1')
           assert not tree.get('truncated')
           entries=[e for e in tree['tree'] if e['type']=='blob']
           assert len(entries)==167
