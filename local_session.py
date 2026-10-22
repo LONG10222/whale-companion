@@ -1,6 +1,6 @@
 """Loopback, same-origin browser sessions. Never expose the owner-lived API key."""
 from pathlib import Path
-import ipaddress,secrets,threading,time
+import hashlib,ipaddress,secrets,threading,time
 from fastapi import HTTPException,Request
 from fastapi.responses import JSONResponse,Response
 
@@ -27,11 +27,11 @@ class LocalSessions:
         response.set_cookie(COOKIE,sid,max_age=12*3600,httponly=True,samesite='strict',path='/')
         response.headers['Cache-Control']='no-store';return response
     def authorize(self,request,authorization=''):
-        if secrets.compare_digest(authorization,'Bearer '+self.api_token):return
+        if secrets.compare_digest(authorization,'Bearer '+self.api_token):return 'bearer:'+hashlib.sha256(authorization.encode()).hexdigest()
         sid=request.cookies.get(COOKIE,'')
         with self.lock:valid=bool(self.sessions.get(sid,0)>self.clock())
         safe=request.method in {'GET','HEAD'} or request.headers.get('x-local-client')==MARKER
-        if valid and safe and self.local(request):return
+        if valid and safe and self.local(request):return 'session:'+hashlib.sha256(sid.encode()).hexdigest()
         raise HTTPException(401,'本机连接已过期，刷新页面即可自动重连。')
 
 def register_local_sessions(app,root,api_token,port=18766):

@@ -85,4 +85,6 @@ def register_qq_routes(app,*,authorize,root):
                 'sent_to_qq':False}
         except Exception as exc:raise HTTPException(503,str(exc)[:200]) from None
         finally:preview_gate.release()
+    from qq_social_routes import register_social_routes
+    register_social_routes(app,authorize=authorize,bridge=bridge)
     return bridge

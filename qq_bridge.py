@@ -23,6 +23,8 @@ class QQBridge:
         self.cfg=json.loads(self.file.read_text(encoding='utf-8'));self.thread=None
         from qq_batch import ReceiveBatcher
         self.batcher=ReceiveBatcher(self)
+        from qq_social import QQSocial
+        self.social=QQSocial(self)
     def configure(self,enabled,bot_id,peers,voice_enabled):
         target=self.cfg.get('test_contact')
         if target and any(p!=target['user_id'] for p in peers):raise ValueError('本次只允许给 owner 测试，不能添加其他好友。')
@@ -49,14 +51,20 @@ class QQBridge:
         self.batcher.wake()
         if self.ws:self.ws.close()
         self.pool.shutdown(wait=False,cancel_futures=True)
-    def call(self,action,params=None,timeout=20):
+    def call(self,action,params=None,timeout=20,*,expected_social=None):
         echo=uuid.uuid4().hex;box=queue.Queue(maxsize=1)
         with self.lock:
             ws=self.ws
             if not ws:raise RuntimeError('QQ连接已断开。')
             self.pending[echo]=box
         try:
-            ws.send(json.dumps({'action':action,'params':params or {},'echo':echo},ensure_ascii=False))
+            with self.lock:
+                if expected_social is not None:
+                    bot,epoch=expected_social
+                    if (not self.social.enabled or not self.cfg.get('enabled') or not self.connected
+                            or self.ws is not ws or self.login_id!=bot or self.cfg.get('bot_id')!=bot or self.epoch!=epoch):
+                        raise RuntimeError('QQ社交确认后连接或权限已变化，不发送。')
+                ws.send(json.dumps({'action':action,'params':params or {},'echo':echo},ensure_ascii=False))
             try:result=box.get(timeout=timeout)
             except queue.Empty:raise RuntimeError('QQ未返回操作回执；不会自动重发。') from None
             if result.get('status')!='ok' or result.get('retcode')!=0:raise QQActionRejected('QQ连接器报告操作失败。')
@@ -91,6 +99,7 @@ class QQBridge:
                             try:box.put_nowait(obj)
                             except queue.Full:pass
                         elif obj.get('post_type')=='message':self.accept(obj,epoch)
+                        elif obj.get('post_type')=='request':self.social.ingest(obj,epoch)
             except Exception:
                 with self.lock:self.connected=False;self.login_id='';self.last_error='等待独立QQ登录并开启连接。'
             finally:
