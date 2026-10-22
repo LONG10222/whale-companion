@@ -283,7 +283,7 @@ class CreativeJobs:
                 receipts.append(receipt['message_id'])
             self.update(jid,delivery='sent');mid=self.bridge.chat.memory.add(peer,'assistant',reply,origin='task')
             self.ledger.record('task_delivered',event_key='task:'+jid+':delivered',peer=peer,job_id=jid,state='sent',details={'receipt_count':len(receipts)})
-            for receipt in receipts:self.bridge.chat.memory.learning.delivery(peer,receipt,mid)
+            for receipt in receipts:self.bridge.chat.memory.learning.delivery(peer,receipt,mid,bot=context['bot'])
             self.bridge.event('creative_result','创作或Codex任务结果已返回owner，QQ已返回消息编号。')
             return {'sent':True,'receipt_count':len(receipts)}
         except Exception:

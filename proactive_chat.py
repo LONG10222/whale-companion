@@ -223,7 +223,7 @@ class ProactiveChat:
         memory_saved=True
         try:
             local_id=self.bridge.chat.memory.add(who,'assistant',approved_text,origin='proactive')
-            self.bridge.chat.memory.learning.delivery(who,receipt['message_id'],local_id)
+            self.bridge.chat.memory.learning.delivery(who,receipt['message_id'],local_id,bot=current['bot_id'])
         except Exception:
             memory_saved=False;self.bridge.event('proactive_memory_error','QQ已返回消息编号，但本地聊天记忆写入失败，请在接入记录中核对。')
         self.bridge.event('proactive_sent','主人已确认一条主动消息，QQ已返回消息编号。')

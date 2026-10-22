@@ -68,7 +68,7 @@ class HistoricalTurnTests(unittest.TestCase):
     def test_unmatched_stickers_do_not_fall_back_to_random_picture(self):
         self.assertFalse(select_candidates([{'id':'x','caption':'在庆祝'}],'这个画错了',[],1,lambda *a,**kw:({'content':'{"ids":[]}'},{})))
     def test_partial_history_contains_only_confirmed_bubbles(self):
-        r={'reply':'给你看看','attachments':[{'kind':'image','path':'C:/safe/x.png','caption':'没确认的图片'}]}
+        r={'reply':'给你看看','attachments':[{'kind':'image','path':str(Path(tempfile.gettempdir())/'safe'/'x.png'),'caption':'没确认的图片'}]}
         h=confirmed_history(r,[[{'type':'text','data':{'text':'给你看看'}}]],True)
         self.assertIn('给你看看',h);self.assertIn('未确认',h);self.assertNotIn('没确认的图片',h);self.assertNotIn('已发送1张',h)
     def test_unclear_utterance_and_questions_do_not_become_permanent_facts(self):
