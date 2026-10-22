@@ -39,7 +39,8 @@ class QQBridge:
         with self.lock:return {'connected':self.connected,'login_id':self.login_id,'enabled':self.cfg['enabled'],
             'bot_id':self.cfg['bot_id'],'allowed_private_ids':self.cfg['allowed_private_ids'],'voice_enabled':self.cfg['voice_enabled'],
             'account_matches':bool(self.login_id and self.login_id==self.cfg['bot_id']),
-            'last_error':self.last_error,'events':self.events[-20:],'groups_enabled':False,'test_contact':self.cfg.get('test_contact')}
+            'last_error':self.last_error,'events':self.events[-20:],'groups_enabled':False,'test_contact':self.cfg.get('test_contact'),
+            'voice_input':self.chat.records.status() if hasattr(self.chat,'records') else {'ready':False},'dialogue_context_version':3}
     def start(self):
         if self.thread and self.thread.is_alive():return
         self.thread=threading.Thread(target=self.run,daemon=True);self.thread.start()
@@ -78,7 +79,7 @@ class QQBridge:
         while not self.stop.is_set():
             try:
                 with connect('ws://127.0.0.1:3001',additional_headers={'Authorization':'Bearer '+self.cfg['onebot_token']},
-                             open_timeout=5,max_size=2*1024**2,proxy=None) as ws:
+                             open_timeout=5,max_size=20*1024**2,max_queue=4,proxy=None) as ws:
                     with self.lock:self.ws=ws;self.connected=True;self.login_id='';self.epoch=uuid.uuid4().hex;self.last_error=''
                     epoch=self.epoch;threading.Thread(target=self.identify,args=(epoch,),daemon=True).start()
                     while not self.stop.is_set():
@@ -114,12 +115,13 @@ class QQBridge:
             '[QQ表情：'+self.faces.get(str(s.get('data',{}).get('id')),'未识别编号')+']' if s.get('type')=='face' else '' for s in segments).strip()[:2000]
         image_segments=[s for s in segments if s.get('type') in ('image','mface')][:3]
         videos=[s for s in segments if video_segment(s)][:1]
-        if not text and not image_segments and not videos:return False
+        records=[s for s in segments if s.get('type')=='record']
+        if not text and not image_segments and not videos and not records:return False
         peer=str(obj['user_id']);bot=str(obj['self_id']);mid=str(obj['message_id'])
         return self.batcher.submit(obj,epoch,text,image_segments,videos)
     def recheck_video(self):
         target=self.cfg.get('test_contact') or {}
-        if target.get('name')!='owner':raise ValueError('本轮仅允许读取long的视频。')
+        if target.get('name')!='owner':raise ValueError('本轮仅允许读取owner的视频。')
         history=self.call('get_friend_msg_history',{'user_id':int(target['user_id']),'count':50})
         messages=sorted((history or {}).get('messages',[]),key=lambda m:m.get('time',0),reverse=True)
         for message in messages:
@@ -129,13 +131,33 @@ class QQBridge:
             event={'post_type':'message','message_type':'private','sub_type':'friend','self_id':self.cfg['bot_id'],
                    'user_id':target['user_id'],'message_id':message['message_id'],'message':segments}
             accepted=self.accept(event,self.epoch)
-            return {'accepted':accepted,'message':'已开始读取long最近的视频。' if accepted else '这条视频已处理过、任务较多或回复尚未启用。请稍后检查，或让long重发。'}
-        return {'accepted':False,'message':'最近50条消息中没有long发来的视频，请重新发送。'}
+            return {'accepted':accepted,'message':'已开始读取owner最近的视频。' if accepted else '这条视频已处理过、任务较多或回复尚未启用。请稍后检查，或让owner重发。'}
+        return {'accepted':False,'message':'最近50条消息中没有owner发来的视频，请重新发送。'}
+    def quoted_context(self,peer,bot,remote_id):
+        # A quote is resolved only within this exact private conversation and bot.
+        with self.chat.memory.learning.db() as db:
+            row=db.execute('SELECT local_id FROM channel_deliveries WHERE peer=? AND bot=? AND remote_id=?',(peer,bot,str(remote_id))).fetchone()
+        if row:
+            with self.chat.memory.db() as db:
+                message=db.execute('SELECT role,content FROM messages WHERE peer=? AND id=?',(peer,row['local_id'])).fetchone()
+            if message:return {'role':message[0],'text':message[1].split('\n[本轮')[0][:6000]}
+        try:
+            history=self.call('get_friend_msg_history',{'user_id':int(peer),'count':100}) or {}
+            message=next((m for m in history.get('messages',[]) if str(m.get('message_id'))==str(remote_id) and str((m.get('sender') or {}).get('user_id')) in {peer,bot}),None)
+            if not message:return {'missing':True}
+            segments=message.get('message',[])
+            if not isinstance(segments,list):return {'missing':True}
+            text=''.join(s.get('data',{}).get('text','') for s in segments if s.get('type')=='text')
+            if not text:
+                record=next((s for s in segments if s.get('type')=='record'),None)
+                if record:text=self.chat.records.analyze(record,self.call,self.event)['text']
+            return {'text':text[:6000],'kind':'image' if any(s.get('type')=='image' for s in segments) else 'text','images':[s for s in segments if s.get('type') in {'image','mface'}][:3]}
+        except Exception:return {'missing':True}
     def process(self,obj,epoch,text,image_segments=None,videos=None,batch_mids=None):
         peer=str(obj['user_id']);bot=str(obj['self_id']);mid=str(obj['message_id'])
         def mark(state):
             for source_mid in (batch_mids or [mid]):self.chat.memory.state(bot,source_mid,state)
-        outbound_started=False
+        outbound_started=False;confirmed_packets=[];delivery_ids=[];history_recorded=False;result=None
         from usage_ledger import USAGE_CONTEXT,Ledger
         usage_token=USAGE_CONTEXT.set({'peer':peer,'role':self.contacts.role(peer),'job_id':'qq:'+bot+':'+mid})
         try:
@@ -143,6 +165,24 @@ class QQBridge:
                 if not self.accepted(obj,epoch):mark('cancelled');return
             self.event('received','收到获准好友的私聊，正在生成回复。')
             quoted=next((s.get('data',{}).get('id') for s in obj.get('message',[]) if s.get('type')=='reply'),None)
+            records=[s for s in obj.get('message',[]) if s.get('type')=='record'];heard=[]
+            if records:
+                texts=[]
+                for source in obj.get('_batch_objects',[obj]):
+                    pieces=[]
+                    for segment in source.get('message',[]):
+                        if segment.get('type')=='text':pieces.append(segment.get('data',{}).get('text',''))
+                        elif segment.get('type')=='face':pieces.append('[QQ表情：'+self.faces.get(str(segment.get('data',{}).get('id')),'未识别编号')+']')
+                        elif segment.get('type')=='record':
+                            try:
+                                recognized=self.chat.records.analyze(segment,self.call,self.event);pieces.append(recognized['text']);heard.append({k:recognized[k] for k in ['seconds','backend'] if k in recognized})
+                            except Exception as exc:
+                                self.event('voice_error',str(exc)[:160]);pieces.append('[对方发来语音，但本次没有听清。请自然说明，没有读到的内容不能猜。]')
+                    texts.append(''.join(pieces))
+                text='\n'.join(texts)[:6000]
+                self.event('voice_received',f'本条来信的{len(heard)}段语音已本地识别，准备按内容回应。')
+            with self.lock:
+                if not self.accepted(obj,epoch):mark('cancelled');return
             learning_reply=self.chat.learning_command(peer,text,quoted) if hasattr(self.chat,'learning_command') and not image_segments and not videos else None
             if learning_reply is not None:
                 # Control replies do not become conversation examples or the next feedback target.
@@ -159,6 +199,10 @@ class QQBridge:
                 except Exception as exc:
                     self.event('video_error',str(exc)[:180]);text+='\n[对方发来视频，但本次读取失败：'+str(exc)[:150]+'。请如实说明，不猜内容。]'
             extra={'media_context':media} if media else {}
+            if records:extra['audio_context']={'recognized_count':len(heard),'segments':heard}
+            if quoted is not None:
+                reference=self.quoted_context(peer,bot,quoted);extra['quoted_context']={k:v for k,v in reference.items() if k!='images'}
+                if reference.get('images') and not image_segments:image_segments=reference['images']
             if hasattr(self.chat,'contacts') or getattr(self.chat,'tasks',None) or getattr(self.chat,'creative',None):extra['task_context']={'bot':bot,'mid':mid,'epoch':epoch,'deliver':True}
             images=[]
             for segment in image_segments or []:
@@ -196,16 +240,18 @@ class QQBridge:
                 receipt=self.call('send_private_msg',{'user_id':int(peer),'message':batch})
                 if not isinstance(receipt,dict) or not receipt.get('message_id'):raise RuntimeError('QQ未提供消息编号，不自动重发。')
                 delivery_ids.append(receipt['message_id'])
+                confirmed_packets.append(batch)
             mark('sent')
             images_sent=sum(item['kind']=='image' for item in result['attachments'])
             audio_sent=any(item['kind']=='record' for item in result['attachments'])
-            delivery_summary=result['reply'] or (f'[已发送{images_sent}张表情]' if images_sent else '[已发送语音]' if audio_sent else '')
+            spoken=''.join(item.get('text','') for item in result['attachments'] if item['kind']=='record')
+            delivery_summary=result['reply'] or spoken or (f'[已发送{images_sent}张表情]' if images_sent else '[已发送语音]' if audio_sent else '')
             faces_sent=[item.get('name','') for item in result['attachments'] if item['kind']=='face']
             if faces_sent:delivery_summary+='\n[本轮QQ默认表情：'+'、'.join(faces_sent)+']'
             if images_sent:
                 descriptions='；'.join(item.get('caption','') for item in result['attachments'] if item['kind']=='image' and item.get('caption'))
                 if descriptions:delivery_summary+='\n[本轮已发送表情的内容记录，仅供后续追问参考：'+descriptions[:600]+']'
-            local_id=self.chat.memory.add(peer,'assistant',delivery_summary)
+            local_id=self.chat.memory.add(peer,'assistant',delivery_summary);history_recorded=True
             for remote_id in delivery_ids:self.chat.memory.learning.delivery(peer,remote_id,local_id)
             for item in result['attachments']:
                 if item['kind']=='image':self.chat.memory.sticker_sent(peer,item['id'])
@@ -214,11 +260,18 @@ class QQBridge:
             except Exception:pass
         except Exception as exc:
             mark('failed_or_unconfirmed');self.event('error',str(exc)[:180])
+            if confirmed_packets and result is not None and not history_recorded:
+                from qq_delivery import confirmed_history
+                local_id=self.chat.memory.add(peer,'assistant',confirmed_history(result,confirmed_packets,partial=True))
+                for remote_id in delivery_ids:self.chat.memory.learning.delivery(peer,remote_id,local_id)
+                sent_files={segment.get('data',{}).get('file') for packet in confirmed_packets for segment in packet if segment['type']=='image'}
+                for item in result.get('attachments',[]):
+                    if item['kind']=='image' and Path(item['path']).as_uri() in sent_files:self.chat.memory.sticker_sent(peer,item['id'])
             if not outbound_started or isinstance(exc,QQActionRejected):
                 with self.lock:allowed=self.accepted(obj,epoch)
                 if allowed:
                     try:
-                        notice='刚才这条没处理好，重来一下。'
+                        notice='前一部分已发出，但后面的附件没发成。' if confirmed_packets else '刚才这条没处理好，暂时没发成。'
                         receipt=self.call('send_private_msg',{'user_id':int(peer),'message':[{'type':'text','data':{'text':notice}}]})
                         if isinstance(receipt,dict) and receipt.get('message_id'):
                             self.chat.memory.add(peer,'assistant',notice);mark('failed_notified')

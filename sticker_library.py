@@ -178,7 +178,7 @@ class StickerLibrary:
         result['sent']=False
         return result
 
-    def reaction(self,emotion,*,theme='featured',character='',query='',recent=None,seed='',require_query=False):
+    def reaction(self,emotion,*,theme='featured',character='',query='',recent=None,seed='',require_query=False,limit=1):
         """Rank the full approved local index, without API calls or arbitrary fallback."""
         recent=recent or [];recent_set=set(recent);candidates=[];terms=query.casefold().split()
         for row in self.load()['images']:
@@ -205,5 +205,6 @@ class StickerLibrary:
             if candidates:
                 oldest=max((recent.index(c[0]['id']) if c[0]['id'] in recent else len(recent)) for c in candidates)
                 candidates=[c for c in candidates if (recent.index(c[0]['id']) if c[0]['id'] in recent else len(recent))==oldest]
-        if not candidates:return None
-        return self.public(max(candidates,key=lambda c:(c[1],c[2]))[0])
+        if not candidates:return [] if limit>1 else None
+        ranked=sorted(candidates,key=lambda c:(c[1],c[2]),reverse=True)
+        return [self.public(c[0]) for c in ranked[:min(24,limit)]] if limit>1 else self.public(ranked[0][0])

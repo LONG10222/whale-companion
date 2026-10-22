@@ -64,7 +64,10 @@ class CreativeJobs:
         return rows
     def prompt_context(self,peer):
         rows=self.recent(peer)
-        return [{k:r[k] for k in ['id','kind','state','thread_id','model','effort']}|{'task':r['args'].get('task',r['args'].get('prompt',r['args'].get('song',r['args'].get('query',''))))[:180]} for r in rows[:5]]
+        return [{k:r[k] for k in ['id','kind','state','thread_id','at','delivery']}|{'model':r['model'] or r['args'].get('model',''),'effort':r['effort'] or r['args'].get('effort',''),
+            'service_tier':'default','task':r['args'].get('task',r['args'].get('prompt',r['args'].get('song',r['args'].get('query',''))))[:180],
+            'request_text':r['args'].get('_request_text','')[:1600],'variants':r['args'].get('_variants',[]),
+            'error':r['error'][:180],'result_summary':(r.get('result') or {}).get('text','')[:200]} for r in rows]
     def resource_check(self,kind):
         s=self.resources()
         if not s or s['ram_free_mib']<(8192 if kind=='sing_song' else 4096) or s['cpu_percent']>80:raise ValueError('电脑当前较忙或可用内存不足，先不启动这项任务。')
@@ -75,16 +78,37 @@ class CreativeJobs:
         definition=next((t['function'] for t in TOOLS if t['function']['name']==kind),None)
         if not definition:raise ValueError('未知工作工具。')
         validate(args,definition['parameters'])
-        if not (kind=='lookup_web' and lookup_intent(raw_text if raw_text is not None else text)) and requested_tool(text)!=kind:raise ValueError('本轮真实来信没有提出这项创作或Codex委托。')
+        from dialogue_context import valid_intent_proof
+        actual=raw_text if raw_text is not None else text
+        if not (kind=='lookup_web' and lookup_intent(actual)) and requested_tool(text)!=kind and not valid_intent_proof(kind,actual,peer,context):raise ValueError('当前这句话没有提出这项新任务，请先回应用户当前的意思。')
         who,s=self.scope(peer,context);context=context or {};deliver=bool(context.get('deliver'));mid=str(context.get('mid','')) if deliver else ''
         if deliver and not self.permissions.origin(who,context):raise ValueError('任务没有对应的真实QQ来信。')
         role=self.contacts.role(who)
+        from dialogue_context import highest_model_requested,comparison_models,named_models
+        variants=comparison_models(text) if kind=='draw_picture' else []
+        if variants:
+            selected=[{'model':m,'effort':choose(role,kind,m,args.get('effort'))[1]} for m in variants]
+            args={**args,'model':selected[0]['model'],'effort':selected[0]['effort'],'_variants':selected}
+        elif kind=='draw_picture' and len(named_models(text))==1:args={**args,'model':named_models(text)[0]}
+        elif role=='admin' and kind=='draw_picture' and highest_model_requested(text):args={**args,'model':'gpt-6.1-sol','effort':'high'}
         if kind=='lookup_web':
             from conversation_tools import public_query
             args={**args,'query':public_query(args['query'])}
-        model,effort=choose(role,kind,args.get('model'),args.get('effort'))
+        try:model,effort=choose(role,kind,args.get('model'),args.get('effort'))
+        except ValueError as exc:
+            from creative_tools import RetryableChoiceError
+            raise RetryableChoiceError(str(exc)) from None
         if kind!='sing_song':args={**args,'model':model,'effort':effort}
+        if kind in {'draw_picture','sing_song'}:args={**args,'_request_text':text[:2000]}
         if role!='admin' and (args.get('read_sources') or args.get('read_paths')):raise ValueError('普通用户不能读取电脑文件或数据库。')
+        if kind=='sing_song':
+            from creative_tools import DEMO_SONGS,named_song,original_song_requested
+            specified=named_song(raw_text if raw_text is not None else text) or named_song(text)
+            chosen=args['song'].strip()
+            if specified and specified.replace('曉','晓')!=chosen.replace('曉','晓'):
+                from creative_tools import RetryableChoiceError
+                raise RetryableChoiceError('对方指定的是《'+specified+'》，不能擅自换成《'+chosen+'》。请按真实歌名修正参数。')
+            if chosen not in DEMO_SONGS and not original_song_requested(chosen,text):raise ValueError('已识别到点歌《'+chosen+'》，但目前没有这首的可用乐谱；重复点歌不会解决。当前已验证的是《春晓》，也可按要求创作短歌。')
         if kind=='delegate_codex':
             from workspace_policy import validate_read_request
             for source in args.get('read_sources',[]):validate_read_request(raw_text if raw_text is not None else text,source)
@@ -115,7 +139,7 @@ class CreativeJobs:
                     prior=db.execute("SELECT thread_id,directory FROM jobs WHERE peer=? AND bot=? AND kind='delegate_codex' AND thread_id!='' "+('AND thread_id=? ' if tid else '')+'ORDER BY at DESC LIMIT 1',([who,s['bot_id'],tid] if tid else [who,s['bot_id']])).fetchone()
                     if args.get('mode')=='continue' and not prior:raise ValueError('没有可续接的本工作台对话，请新建。')
                     use=prior and (args.get('mode')=='continue' or bool(re.search('继续|刚才|上个|接着',text)))
-                    if tid and not prior:raise ValueError('只能继续long在本工作台创建的对话。')
+                    if tid and not prior:raise ValueError('只能继续owner在本工作台创建的对话。')
                     if use:args={**args,'thread_id':prior['thread_id'],'directory':prior['directory']}
                     else:args={k:v for k,v in args.items() if k!='thread_id'}
                 if kind=='delegate_codex' and args.get('mode')=='new':args={k:v for k,v in args.items() if k!='thread_id'}
@@ -130,9 +154,14 @@ class CreativeJobs:
                 db.execute('INSERT INTO jobs(id,peer,bot,mid,epoch,kind,args,state,at,updated,deliver,delivery,result,error) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                     (jid,who,s['bot_id'],mid,context.get('epoch',''),kind,json.dumps(args,ensure_ascii=False),'accepted',now,now,int(deliver),'pending' if deliver else 'preview','',''))
             cancelled=threading.Event();self.cancels[jid]=cancelled
-            self.ledger.record('task_accepted',event_key='task:'+jid+':accepted',at=now,peer=who,role=role,job_id=jid,model=args.get('model','local_voice'),effort=args.get('effort',''),state='accepted',details={'kind':kind,'delivery':'qq' if deliver else 'preview','query_timeout_seconds':args.get('_query_timeout_seconds')})
+            self.ledger.record('task_accepted',event_key='task:'+jid+':accepted',at=now,peer=who,role=role,job_id=jid,model=args.get('model','local_voice'),effort=args.get('effort',''),state='accepted',details={'kind':kind,'delivery':'qq' if deliver else 'preview','query_timeout_seconds':args.get('_query_timeout_seconds'),'variants':args.get('_variants',[])})
             self.pool.submit(self.work,jid,who,kind,args,raw_text if raw_text is not None else text,context,cancelled)
-        return {'accepted':True,'job_id':jid,'state':'accepted','message':'工作已实际接收，尚未表示已新建对话或完成；真实进度在工作台，完成后返回结果。' if deliver else '本地预览已接收，完成后可在工作台查看；不会自动发到QQ。'}
+        result={'accepted':True,'job_id':jid,'state':'accepted','message':'工作已实际接收，尚未表示已新建对话或完成；真实进度在工作台，完成后返回结果。' if deliver else '本地预览已接收，完成后可在工作台查看；不会自动发到QQ。'}
+        if kind=='draw_picture':
+            from dialogue_context import drawing_constraints
+            result.update(drawing_constraints=drawing_constraints(text),applied_requirements=text[:700],model=model,effort=effort)
+            if variants:result['variants']=selected
+        return result
     def local(self,path,body=None,timeout=15):
         cfg=json.loads((self.root/'settings.local.json').read_text(encoding='utf-8'))
         with httpx.Client(trust_env=False,timeout=timeout) as c:
@@ -145,8 +174,9 @@ class CreativeJobs:
             return r.json()
     def sing(self,args,text):
         song=args['song'].strip()
-        if song in {'春晓','春曉','随便','随便一首','演示','清唱','短歌',''}:payload=self.local('/score/demo')
-        elif '原创' in song or '原创' in text:
+        from creative_tools import DEMO_SONGS,original_song_requested
+        if song in DEMO_SONGS:payload=self.local('/score/demo')
+        elif original_song_requested(song,text):
             import deepseek_client
             from agent_tools import TOOLS
             tool=next(t for t in TOOLS if t['function']['name']=='sing_from_score')
@@ -182,14 +212,37 @@ class CreativeJobs:
                 result=self.research.run(jid,peer,args,accepted_at,self.contacts.role(peer),thread_id=args.get('thread_id',''),directory=args.get('directory',''),
                     cancelled=lambda:self.stop.is_set() or cancelled.is_set(),progress=lambda **kw:self.update(jid,**{k:v for k,v in kw.items() if k in {'thread_id','directory','model','effort'}}))
             elif kind=='sing_song':result=self.sing(args,text)
+            elif kind=='draw_picture' and args.get('_variants'):
+                attachments=[];outputs=[];failures=[];thread_id=args.get('thread_id','');directory=args.get('directory','')
+                for index,variant in enumerate(args['_variants']):
+                    if cancelled.is_set() or self.stop.is_set():raise ValueError('任务已停止。')
+                    try:
+                        self.resource_check(kind)
+                        output=self.workbench.run(jid,args['prompt'],**variant,thread_id=thread_id,directory=directory,image=True,
+                            label=self.contacts.label(peer),role=self.contacts.role(peer),kind=kind,source_text=args.get('_request_text',text),
+                            cancelled=lambda:self.stop.is_set() or cancelled.is_set(),progress=lambda **kw:self.update(jid,**{k:v for k,v in kw.items() if k in {'thread_id','directory','model','effort'}}))
+                        if not output.get('images'):raise ValueError('没有收到真实生成的图片。')
+                        thread_id=output.get('thread_id','');directory=output.get('directory','')
+                        source=Path(output['images'][0]);dest=self.folder/(jid+f'-{index}'+source.suffix.lower());shutil.copy2(source,dest)
+                        if dest.stat().st_size>10*1024**2:raise ValueError('生成的原图超过10MB。')
+                        attachments.append({'kind':'image','path':str(dest),'sticker':False,'id':jid+str(index)})
+                        outputs.append({**variant,'service_tier':'default','image_index':len(attachments),'thread_id':thread_id,'directory':directory})
+                    except Exception as exc:
+                        if cancelled.is_set() or self.stop.is_set():raise
+                        failures.append({**variant,'error':str(exc)[:180]})
+                if not attachments:raise ValueError('两种模型都没有生成成功：'+'；'.join(f['error'] for f in failures))
+                labels='；'.join('第'+str(o['image_index'])+'张：'+o['model']+' / '+o['effort'] for o in outputs)
+                result={'text':labels+'，均为普通速度。'+(('另一张未完成：'+'；'.join(f['model']+'：'+f['error'] for f in failures)) if failures else ''),
+                    'attachments':attachments,'metadata':{'variants':outputs,'variant_errors':failures,'partial':bool(failures),'model':'multiple','service_tier':'default'}}
             else:
                 task=args.get('prompt') if kind=='draw_picture' else args['task']
                 output=self.workbench.run(jid,task,model=args.get('model','gpt-6.1-sol'),effort=args.get('effort','medium'),thread_id=args.get('thread_id',''),directory=args.get('directory',''),image=kind=='draw_picture',
                     label=self.contacts.label(peer),role=self.contacts.role(peer),kind=kind,
-                    source_text=text,read_sources=args.get('read_sources',[]),read_paths=args.get('read_paths',[]),
+                    source_text=args.get('_request_text',text) if kind=='draw_picture' else text,read_sources=args.get('read_sources',[]),read_paths=args.get('read_paths',[]),
                     cancelled=lambda:self.stop.is_set() or cancelled.is_set(),progress=lambda **kw:self.update(jid,**{k:v for k,v in kw.items() if k in {'thread_id','directory','model','effort'}}))
                 attachments=[]
                 if kind=='draw_picture':
+                    if not output.get('images'):raise ValueError('没有收到真实生成的图片，不能说已经画好。')
                     for index,path in enumerate(output['images'][:1]):
                         source=Path(path);dest=self.folder/(jid+f'-{index}'+source.suffix.lower());shutil.copy2(source,dest)
                         if dest.stat().st_size>10*1024**2:raise ValueError('生成的原图超过10MB，先在工作台查看原文件。')
@@ -197,7 +250,7 @@ class CreativeJobs:
                 result={'text':'画好了。' if kind=='draw_picture' else output['text'][-1400:],'attachments':attachments,'metadata':output}
             if cancelled.is_set():raise ValueError('任务已停止，结果留在本机。')
             self.update(jid,state='completed',result=json.dumps(result,ensure_ascii=False))
-            self.ledger.record('task_finished',event_key='task:'+jid+':finished',peer=peer,role=self.contacts.role(peer),job_id=jid,model=args.get('model','local_voice'),effort=args.get('effort',''),state='partial' if result.get('metadata',{}).get('timed_out') else 'completed',duration=time.time()-started,details={'kind':kind,'summary_mode':result.get('metadata',{}).get('summary_mode',''),'source_count':len(result.get('metadata',{}).get('sources',[]))})
+            self.ledger.record('task_finished',event_key='task:'+jid+':finished',peer=peer,role=self.contacts.role(peer),job_id=jid,model=args.get('model','local_voice'),effort=args.get('effort',''),state='partial' if result.get('metadata',{}).get('timed_out') or result.get('metadata',{}).get('partial') else 'completed',duration=time.time()-started,details={'kind':kind,'summary_mode':result.get('metadata',{}).get('summary_mode',''),'source_count':len(result.get('metadata',{}).get('sources',[])),'variants':result.get('metadata',{}).get('variants',[])})
         except Exception as exc:
             self.update(jid,state='cancelled' if cancelled.is_set() else 'failed',error=str(exc)[:500])
             self.ledger.record('task_finished',event_key='task:'+jid+':finished',peer=peer,job_id=jid,model=args.get('model','local_voice'),state='cancelled' if cancelled.is_set() else 'failed',duration=time.time()-started,details={'kind':kind,'error_type':type(exc).__name__})
@@ -231,7 +284,7 @@ class CreativeJobs:
             self.update(jid,delivery='sent');mid=self.bridge.chat.memory.add(peer,'assistant',reply,origin='task')
             self.ledger.record('task_delivered',event_key='task:'+jid+':delivered',peer=peer,job_id=jid,state='sent',details={'receipt_count':len(receipts)})
             for receipt in receipts:self.bridge.chat.memory.learning.delivery(peer,receipt,mid)
-            self.bridge.event('creative_result','创作或Codex任务结果已返回long，QQ已返回消息编号。')
+            self.bridge.event('creative_result','创作或Codex任务结果已返回owner，QQ已返回消息编号。')
             return {'sent':True,'receipt_count':len(receipts)}
         except Exception:
             self.update(jid,delivery='uncertain');raise

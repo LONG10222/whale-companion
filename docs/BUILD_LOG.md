@@ -21,6 +21,11 @@ This is a sanitized engineering account, not a transcript or a dump of a private
 | Local login UI | A missing local token also blocked QR refresh. / 令牌未填导致二维码也刷不出来。 | Same-origin loopback sessions and automatic QR state handling. / 免手填令牌并保留手机确认。 |
 | Startup | Duplicate processes and weak connectivity checks obscured failures. / 重复启动和只检查端口造成误判。 | Clash first, actual Google HTTPS response, then ChatGPT and verified services. / 联网通过后继续，已运行则跳过。 |
 | Publication | A live folder mixes code with private and third-party material. / 工作目录混有账号、聊天、权重和素材。 | Build an allowlisted public snapshot, portable configuration and provenance records. / 单独构建公开版并扫描。 |
+| Context repair | Old assistant denials and unrelated jobs displaced the current request. / 旧的能力否认和任务干扰新消息。 | Select memory by original user evidence, store quote links, use actual task records and keep the current user turn last. / 原话证据、引用关系与任务状态分开。 |
+| Voice input | Voice-only messages and exact read-backs needed a separate path. / 纯语音输入和原文朗读处理不完整。 | Decode through the connector, run bounded local CPU ASR, preserve words and use normal-speed sentence chunks. / 接收识别与原文朗读分开。 |
+| Sticker meaning | An emotion label could match while the text contradicted the conversation. / 情绪标签对上但图中文字不合时宜。 | Choose from approved local candidates using captions, OCR and current context. / 根据图意接话，不随机硬配。 |
+| Model comparison | A request for two model variants could admit only the first. / 两种模型对比只执行第一张。 | One bounded sequential comparison job, explicit labels and partial results. / 串行执行并保留成功部分。 |
+| Login continuity | Repeated QR login was burdensome. / 反复扫码不便。 | Owner-only saved-session recovery and encrypted password fallback, with real QQ verification and staged account switching. / 快速恢复、加密凭据与受控换号。 |
 
 ## What the checks establish / 检查能证明什么
 

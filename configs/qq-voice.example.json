@@ -1,0 +1,4 @@
+{
+  "asr_python": ".venv/Scripts/python.exe",
+  "asr_model": "models/sensevoice-int8"
+}

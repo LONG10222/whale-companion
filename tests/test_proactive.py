@@ -28,7 +28,9 @@ class ProactiveTests(unittest.TestCase):
             self.calls.append(messages)
             return {'content':json.dumps({'should_contact':True,'topic':'鸣潮探索','message':'鸣潮那张地图，逛着逛着是不是又走偏了？','reason':'接着之前聊过的探索话题。','source_ids':[1]})},{}
         self.service=ProactiveChat(self.root,self.bridge,model,lambda:self.now);self.bridge.proactive=self.service
+        self.message_clock=patch('qq_chat.time.time',side_effect=lambda:self.now);self.message_clock.start()
     def tearDown(self):
+        self.message_clock.stop()
         self.service.close();self.bridge.pool.shutdown(wait=True);self.tmp.cleanup()
     def draft(self):return self.service.generate(manual=True)
     def inbound(self,text='你好',mid=10,**overrides):
@@ -65,8 +67,8 @@ class ProactiveTests(unittest.TestCase):
         def model(*args):
             result=original(*args);self.service.incoming(self.inbound());return result
         self.service.client=model;d=self.draft();self.assertEqual(d['state'],'stale');self.assertFalse(self.sent)
-    def test_new_inbound_even_unsupported_audio_invalidates_and_delays(self):
-        d=self.draft();event=self.inbound(message=[{'type':'record','data':{'file':'voice'}}])
+    def test_new_inbound_even_unsupported_file_invalidates_and_delays(self):
+        d=self.draft();event=self.inbound(message=[{'type':'file','data':{'file':'notes.txt'}}])
         self.assertFalse(self.bridge.accept(event,'test'));self.assertEqual(self.service.state()['drafts'][0]['state'],'stale')
         self.assertEqual(self.service.eligibility()['idle_minutes'],0)
         with self.assertRaises(ValueError):self.service.send_manual(d['id'],d['message'])

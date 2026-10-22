@@ -56,8 +56,15 @@ class CreativeTests(unittest.TestCase):
     def test_low_resources_fail_without_starting_codex(self):
         self.service.resources=lambda:{'ram_free_mib':500,'gpu_free_mib':13000,'gpu_util_percent':0,'cpu_percent':0}
         self.service.request(self.peer,'delegate_codex',self.args,'让Codex写文件');self.settle();self.assertFalse(self.worker.calls);self.assertEqual(self.service.recent()[0]['state'],'failed')
+    def test_owner_explicit_highest_drawing_uses_the_authorized_ceiling(self):
+        self.service.request(self.peer,'draw_picture',{'prompt':'蓝色鲸鱼','model':'gpt-6-luna','effort':'medium'},'帮我画一张鲸鱼，用权限最高的模型');self.settle()
+        self.assertEqual(self.worker.calls[-1][2]['model'],'gpt-6.1-sol');self.assertEqual(self.worker.calls[-1][2]['effort'],'high')
     def test_unknown_song_is_not_replaced_with_spoken_lyrics(self):
         with self.assertRaises(ValueError):self.service.sing({'song':'启航星'},'唱启航星')
+    def test_unregistered_song_is_identified_before_starting_any_worker(self):
+        with self.assertRaisesRegex(ValueError,'已识别到点歌'):self.service.request(self.peer,'sing_song',{'song':'小星星'},'唱小星星')
+        self.assertFalse(self.worker.calls);self.assertFalse(self.service.recent())
+        with self.assertRaisesRegex(ValueError,'不能擅自换成'):self.service.request(self.peer,'sing_song',{'song':'春晓'},'唱小星星')
     def test_endpoints_require_owner_token_and_reject_recipient_override(self):
         from fastapi import FastAPI,Header,HTTPException
         from fastapi.testclient import TestClient

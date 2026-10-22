@@ -14,7 +14,7 @@ class ReceiveBatcher:
             standalone=self.immediate(obj,text)
             if batch and standalone:
                 batch['immediate']=True;self.pending.pop(key,None);self.condition.notify_all();batch=None
-            if batch and not standalone and len(batch['objects'])<12 and batch['chars']+len(text)<=6000 and len(batch['images'])+len(images)<=3 and len(batch['videos'])+len(videos)<=1:
+            if batch and not standalone and len(batch['objects'])<12 and batch['chars']+len(text)<=6000 and len(batch['images'])+len(images)<=3 and len(batch['videos'])+len(videos)<=1 and sum(s.get('type')=='record' for o in batch['objects']+[obj] for s in o.get('message',[]))<=3:
                 if not b.chat.memory.claim(bot,mid,peer):return False
                 batch['objects'].append(obj);batch['texts'].append(text);batch['images'].extend(images);batch['videos'].extend(videos);batch['last']=now;batch['chars']+=len(text)
                 self.condition.notify_all();return True
@@ -37,7 +37,7 @@ class ReceiveBatcher:
                     self.condition.wait(left)
                 if self.pending.get(batch['key']) is batch:self.pending.pop(batch['key'],None)
                 objects=list(batch['objects']);mids=[str(o['message_id']) for o in objects]
-                merged={**first,'message':[s for o in objects for s in o.get('message',[])]}
+                merged={**first,'message':[s for o in objects for s in o.get('message',[])],'_batch_objects':objects}
                 text='\n'.join(t for t in batch['texts'] if t)
             if len(objects)>1:b.event('message_batch',f'已将同一好友连续的{len(objects)}条消息一起处理。')
             entered=True;b.process(merged,batch['epoch'],text,batch['images'],batch['videos'],batch_mids=mids)

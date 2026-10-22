@@ -2,7 +2,7 @@ from pathlib import Path
 import re,threading
 from fastapi import Depends,HTTPException
 from fastapi.responses import HTMLResponse,FileResponse
-from pydantic import BaseModel,Field
+from pydantic import BaseModel,Field,SecretStr
 from qq_bridge import QQBridge
 
 class QQConfig(BaseModel):
@@ -12,11 +12,42 @@ class QQConfig(BaseModel):
     voice_enabled:bool=True
 class Preview(BaseModel):
     text:str=Field(min_length=1,max_length=1200)
+class AccountCredentials(BaseModel):
+    uin:str=Field(pattern=r'^[1-9]\d{4,11}$')
+    password:SecretStr=SecretStr('')
+    label:str=Field(default='',max_length=40)
+    remember:bool=True
+class CaptchaAnswer(BaseModel):
+    ticket:SecretStr
+    randstr:SecretStr
 
 def register_qq_routes(app,*,authorize,root):
     root=Path(root);bridge=QQBridge(root);preview_gate=threading.Lock()
     from qq_login import LoginService
     login_service=LoginService(root,bridge)
+    from qq_login_accounts import AccountLogin
+    accounts=AccountLogin(root,bridge,login_service);bridge.login_manager=accounts;login_service.accounts=accounts
+    def account_call(fn):
+        try:return fn()
+        except ValueError as exc:raise HTTPException(409,str(exc)) from None
+        except Exception:raise HTTPException(503,'QQ登录服务暂未就绪，请稍后重试。') from None
+    @app.get('/qq/login/accounts',dependencies=[Depends(authorize)])
+    def accounts_state():return account_call(accounts.status)
+    @app.post('/qq/login/account',dependencies=[Depends(authorize)])
+    def account_login(body:AccountCredentials):return account_call(lambda:accounts.configure(body.uin,body.password.get_secret_value(),body.label,body.remember))
+    @app.post('/qq/login/captcha',dependencies=[Depends(authorize)])
+    def captcha_login(body:CaptchaAnswer):return account_call(lambda:accounts.captcha(body.ticket.get_secret_value(),body.randstr.get_secret_value()))
+    @app.get('/qq/login/device-qr',dependencies=[Depends(authorize)])
+    def device_qr():
+        from fastapi.responses import Response
+        return Response(account_call(accounts.device_qr),media_type='image/png',headers={'Cache-Control':'no-store'})
+    @app.delete('/qq/login/accounts/{uin}',dependencies=[Depends(authorize)])
+    def forget_account(uin:str):
+        account_call(lambda:accounts.vault.forget(uin));return accounts.status()
+    @app.get('/qq/login/accounts.js')
+    def login_script():
+        from fastapi.responses import Response
+        return Response((root/'qq_login_accounts.js').read_text(encoding='utf-8'),media_type='application/javascript',headers={'Cache-Control':'no-store'})
     @app.get('/qq',response_class=HTMLResponse)
     def page():return (root/'qq.html').read_text(encoding='utf-8')
     @app.get('/qq/status',dependencies=[Depends(authorize)])

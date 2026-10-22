@@ -21,10 +21,11 @@ This repository contains application source, design decisions, and configuration
 | Capability | Implementation |
 |---|---|
 | Private QQ chat | NapCat / OneBot v11, a dedicated bot account, explicit allowlist, deduplication, burst batching |
-| Memory and persona | Recent context, rolling summaries, evidence-backed memory candidates, owner-reviewed feedback |
+| Memory and persona | Recent context, original-user evidence profiles, separate task state and owner-reviewed feedback |
 | Images and reactions | Image/GIF understanding, contextual local stickers, mostly separate text and image bubbles |
 | Video | Bounded frame sampling, cloud vision, optional CPU speech recognition |
-| Speech and singing | Optional on-demand speech, score-driven singing and voice conversion, content/integrity checks |
+| Speech and singing | Local CPU input transcription, exact read-aloud, optional score-driven singing and voice conversion |
+| Login and switching | Saved-session recovery, encrypted password fallback, human QQ verification and staged account switching |
 | Public research | Controlled public-page reads, Luna summaries, source links, partial results on timeout |
 | Access and budgets | QQ-number identities; administrator, regular, manual Plus; rolling two queries/15 min and five-minute limit |
 | Usage ledger | Task events, reported tokens, balance snapshots and net changes; unknown cost stays unknown |
@@ -90,6 +91,16 @@ Heavy jobs run one at a time with three pending slots; a regular/Plus user can h
 ```
 
 Tests cover source identity, deduplication, scoped memory, permissions, quotas, worker termination, ledger integrity, local-session isolation, and QR states. They do not certify human-like behavior, emotional quality, or universal QQ compatibility. Please submit small reproducible issues without credentials, chat history, account numbers, or private filesystem paths.
+
+## Recent reliability and login updates
+
+- QQ voice messages can be decoded through OneBot and transcribed by a bounded local SenseVoice int8 CPU worker. Copy `configs/qq-voice.example.json` to a private local configuration and install `requirements-qq-voice.txt`; model files are not included.
+- Long-term notes reference actual user messages. Legacy free-form summaries remain available locally but are not injected as current truth. Quoted-message relationships, current task state and character-style examples are separate inputs.
+- Task model/reasoning questions read actual job records. Two explicitly requested drawing models run sequentially in one bounded comparison job, with labelled outputs and partial-failure reporting. Ordinary users remain restricted to Luna and every Codex turn uses standard speed.
+- Sticker selection considers captions and embedded text in the current conversation. Partial sends retain only bubbles with real QQ receipts.
+- The local owner can save a bot credential encrypted with Windows DPAPI, restore a saved session, continue required CAPTCHA/device verification and switch between bot accounts. Rejected authentication stops automatic retries. See [QQ login](docs/QQ_LOGIN.md).
+
+The public snapshot contains no instance credentials, account identifiers, databases, login screenshots, downloaded artwork or model weights. Automated checks verify program behavior; optional models and real QQ authentication still depend on the operator's environment.
 
 ## License and acknowledgements
 

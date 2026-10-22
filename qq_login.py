@@ -39,9 +39,12 @@ class LoginService:
                 expected=self.bridge.cfg.get('locked_bot_id') or self.bridge.cfg.get('bot_id','')
                 phase=state.get('loginPhase','');pending=bool(state.get('qrLoginAccepted') or phase in {'qrcode_scanned','initializing','captcha','new_device','reconnecting'})
                 out={'logged_in':bool(state.get('isLogin')),'phase':phase,'pending_confirmation':pending,'expected_bot':expected,'qr_ready':False,'message':''}
+                owned=self.accounts.status() if getattr(self,'accounts',None) else {}
                 if out['logged_in']:
                     info=self.admin.call('QQLogin/GetQQLoginInfo') or {};uin=str(info.get('uin') or '')
                     out.update(login_id=uin,account_matches=uin==expected,message='机器人已登录，正在自动接通。' if uin==expected else '登录账号与机器人小号不一致，请使用指定小号。')
+                elif owned.get('phase') in {'captcha','new_device','logging_in','restarting'}:
+                    out.update(phase=owned['phase'],pending_confirmation=True,message=owned.get('message','正在恢复账号登录。'))
                 elif pending:
                     out['message']='已扫码，请在手机确认或完成必要验证。' if phase!='reconnecting' else 'QQ正在自动重连，暂不刷新二维码。'
                 else:

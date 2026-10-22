@@ -1,0 +1,2 @@
+# Small QR encoder for QQ's mandatory new-device confirmation; no GPU dependency.
+qrcode==8.2

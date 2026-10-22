@@ -8,6 +8,8 @@ Run the README setup using Python 3.12. Start with `phone_server:app` and voice 
 
 ## Optional voice / 可选语音
 
+QQ input transcription can be configured independently of the synthesis engines. Install `requirements-qq-voice.txt`, obtain the permitted SenseVoice int8 ONNX model and tokens from its upstream source, and copy `configs/qq-voice.example.json` to `configs/qq-voice.local.json`. Fill the recognition Python and model-directory paths. This uses a bounded CPU worker, not a resident GPU model. See [QQ login](QQ_LOGIN.md) for automatic account recovery and switching.
+
 `voice_server.py` is the media host on port 18765. The example settings identify model paths, Python environments and engine configuration. They are templates, not downloaded assets. Obtain upstream speech/singing runtimes from the sources in `ATTRIBUTIONS.md`, review their terms, and set your local paths.
 
 Different synthesis engines may need incompatible Python packages. Keep separate environments rather than downgrading the text service. CUDA builds must support your GPU; an advertised GPU memory cap is not a guarantee about all processes on the device. Start with short demos and verify both content and sound by listening.

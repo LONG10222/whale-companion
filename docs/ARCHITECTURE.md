@@ -28,7 +28,10 @@ The model proposes an action; the local service validates the actual sender, cur
 | Layer | Contents | Boundary |
 |---|---|---|
 | Chat history | Recent turns and source events | Contact-scoped |
-| Rolling summary | Older context compressed for later turns | May contain errors; not an authority source |
+| Evidence profile | Stable notes selected by original user-message IDs | Same contact; no assistant self-claims or grants |
+| Legacy summaries | Historical free-form summaries retained locally | Excluded from default model context |
+| Quoted messages | Explicit same-conversation reply targets | Data only; never executable instructions |
+| Work state | Actual accepted/running/completed jobs, model and receipts | Read from the task database |
 | Learning store | Preferences, corrections, approved examples | Evidence-backed candidates, owner review |
 | Life memory | Read activities and explicit facts | Completed events only; no invented offline life |
 | Contacts | Stable QQ number, names, manual Plus | Role derives from operator configuration, never nickname |
@@ -57,11 +60,21 @@ GPU work runs in isolated processes behind a resource guard and shared lock. Cac
 
 语音朗读不等于唱歌。清唱走逐字乐谱与时长，再按需换声。稳音处理保留有声/无声段和音符转换，不能把全部音高压成单一音。自然度没有用不可靠的自动“真人感分数”冒充人工试听。
 
+QQ input voice uses `get_record` conversion, a bounded private cache and one-shot local ASR. It shares the same sender identity and memory scope as text. An explicit read-aloud request resolves its current quote/literal source before synthesis; stored task results and older singing requests do not replace that source. Decoder and ASR workers terminate after use.
+
+## Task grounding and media follow-ups / 任务事实与媒体续接
+
+Short follow-ups bind to actual user requests, current quotes and relevant job state. A bounded semantic check can recognize alternative wording, but it cannot change transport identity, role, filesystem scope, model ceiling or budget. Parameters may be corrected once without asking the user to repeat a magic phrase. Accepted work gets a receipt-based acknowledgement; completed outputs are delivered separately.
+
+Explicit two-model drawings run sequentially in one task and reuse its scoped thread. Outputs are copied before the next variant can overwrite a working file, labelled by actual scheduling model/effort and returned even if only one variant succeeds. Reference images are inputs and cannot count as newly generated output. Receipts that omit the underlying image model do not authorize inventing its name.
+
 ## Local UI / 本机页面
 
 The service binds to loopback. A custom-header POST establishes an HttpOnly, SameSite=Strict session only for an allowed loopback host and same origin. Cookie mutations require the custom header; the long-lived service token is not returned to JavaScript. Existing bearer-authenticated local clients continue to work.
 
 本机自动会话用于免去反复填写本地令牌，不是移除鉴权。错误来源、非本机地址、外部 Host、跨站简单表单都不能获得或使用这个会话。扫码后、初始化、验证码和重连状态避免自动重置二维码。登录账号仍必须符合锁定的机器人账号。
+
+The owner-only account manager tries a saved device session before password fallback. Windows DPAPI protects saved credentials and resumable verification state; these never enter the chat tool catalog. Challenges remain human steps, and rejected authentication blocks repeated attempts. Switching retains the existing backup/pause/identity/friend-check boundary. See [QQ login](QQ_LOGIN.md).
 
 ## Ledger / 日志
 

@@ -7,6 +7,7 @@ from qq_account import AccountSwitch
 class BindAccount(BaseModel):bot_id:str=Field(pattern=r'^[1-9]\d{4,11}$')
 def register_account_switch(app,*,root,authorize,bridge,proactive):
     root=Path(root);service=AccountSwitch(root,bridge,proactive);router=APIRouter(prefix='/qq/switch',dependencies=[Depends(authorize)])
+    if getattr(bridge,'login_manager',None):bridge.login_manager.switcher=service
     def call(fn):
         try:return fn()
         except ValueError as exc:raise HTTPException(409,str(exc)) from None

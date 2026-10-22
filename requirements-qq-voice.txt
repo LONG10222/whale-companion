@@ -1,0 +1,4 @@
+av>=14,<20
+numpy>=2.1,<3
+soundfile>=0.13,<0.14
+sherpa-onnx>=1.12,<2

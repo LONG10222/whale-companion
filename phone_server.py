@@ -15,10 +15,12 @@ CONFIG = json.loads((ROOT/'settings.local.json').read_text(encoding='utf-8'))
 @asynccontextmanager
 async def lifespan(app):
     QQ_SERVICE.start()
+    QQ_SERVICE.login_manager.start()
     PROACTIVE_SERVICE.start()
     LIFE_SERVICE.start()
     BALANCE_SERVICE.start()
     yield
+    QQ_SERVICE.login_manager.close()
     LIFE_SERVICE.close()
     BALANCE_SERVICE.close()
     CREATIVE_SERVICE.close()

@@ -12,8 +12,9 @@ CASUAL_CHAT=CASUAL_CHAT.replace('当前QQ提供图库表情和聊天语音，没
 NUMBERS={'一':1,'二':2,'两':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10}
 
 def sticker_request(text,history=None):
-    current=text.strip();recent=history or []
-    explicit=bool(re.search(r'(?:发|来|给|看看|想看|要).{0,20}(?:表情包|表情|斗图)|(?:表情包|斗图).{0,15}(?:发|来|看看|给|要)',current))
+    from dialogue_context import plain_text
+    current=plain_text(text);recent=history or []
+    explicit=bool(re.search(r'(?:发|来|给|看看|想看|要(?!求)).{0,20}(?:表情包|表情|斗图)|(?:表情包|斗图).{0,15}(?:发|来|看看|给|要)',current))
     if re.search(r'发(?:什么|哪些)表情',current):explicit=False
     in_sticker_topic=False
     for role,previous in reversed(recent[-24:]):
@@ -23,14 +24,14 @@ def sticker_request(text,history=None):
             in_sticker_topic='表情' in previous;break
     followup=bool(in_sticker_topic and re.search(r'^(?:我的意思是)?\s*(?:再发|多发|再来|来[一二两三几0-9]|发[呀啊吧一二两三几0-9]|(?:给我)?发(?:张|个|一张)?(?:图|图片)|给我(?:来|发)?[一二两三几0-9])',current))
     offer=next((t for role,t in reversed(recent[-5:]) if role=='assistant'),'')
-    accepted_offer=bool(in_sticker_topic and current in ['我看看','看看','来吧','发来看看'] and re.search('再.*(?:几张|翻|发)|给你.*(?:图|张)',offer))
+    accepted_offer=bool(in_sticker_topic and current in ['我看看','看看','来吧','发来看看','可以啊','可以','好啊','来一个','发吧'] and re.search('再.*(?:几张|翻|发)|给你.*(?:图|张)|发一个|发一张',offer))
     forbid=bool(re.search(r'(?:不要|别|不用|先别)(?:再)?(?:发|给我发)(?:这些|那个|这个|这种|任何)?表情',current)
         or re.search(r'(?:不要|别|不用|先别).{0,4}(?:配|加).{0,5}(?:表情|图)|只(?:要|发|用)(?:文字|文本)|纯文字',current)
         or (in_sticker_topic and re.fullmatch(r'(?:别|不要)(?:再)?发了[。！!]*',current)))
     requested=(explicit or followup or accepted_offer) and not forbid
     match=re.search(r'([1-9]|10|一|二|两|三|四|五|六|七|八|九|十)\s*(?:张|个)',current)
     amount=(NUMBERS.get(match.group(1),int(match.group(1)) if match.group(1).isdigit() else 1) if match else
-        3 if re.search('几张|多发|多来|一些|一组|一套|来点',current) or accepted_offer else 1)
+        3 if re.search('几张|多发|多来|一些|一组|一套|来点',current) or accepted_offer and re.search('几张|多|一些|一组',offer) else 1)
     no_explain=bool(re.search(r'(?:不要|别|不用|无需).{0,5}(?:解释|介绍|说明)',current))
     explain=bool(re.search('解释|介绍|说明|讲讲|什么意思',current) and not no_explain)
     extra_text=bool(re.search(r'(?:顺便|并|再)(?:说|聊|告诉)|配.{0,4}(?:文字|一句)',current))
@@ -50,7 +51,17 @@ def unsupported_retry(reply,current,history,trace,running=False):
 
 def history_messages(rows):
     result=[]
-    for role,text in rows:
+    for row in rows:
+        role,text=row[:2];origin=row[2] if len(row)>2 else 'chat'
+        text,partial,notice=text.partition('\n[发送状态记录：')
+        if partial:result.append({'role':'system','content':'这条历史发送的真实状态，仅作事实：'+notice[:300]})
+        obsolete=role=='assistant' and bool(re.search(r'(?:程序|后台).{0,16}(?:挡|拦|不认|没认|不算)|没认到.{0,12}请求|再发(?:一次|一句)|再说一句|(?:没|没有|不|不能|查不了|接不了|只能).{0,10}(?:唱歌|画图|余额|接口|QQ号|模拟器|语音)|会基本的.{0,12}(?:走位|开枪)|(?:能|会|可以).{0,6}操作模拟器玩游戏',text))
+        if obsolete:
+            result.append({'role':'system','content':'历史助手的能力自述或失败反馈，可能来自旧版本限制或误判；只用于理解对方为何不满，不能当作当前能力、进度或说话示范：\n'+text[:1600]})
+            continue
+        if role=='assistant' and origin=='task':
+            result.append({'role':'system','content':'已完成并发送的历史任务结果，仅作事实资料；不是本轮请求，不是角色聊天的口吻示范，也不代表仍在运行：\n'+text[:3500]})
+            continue
         if role=='user' and '\n[本条QQ消息附图' in text:
             actual,_,visual=text.partition('\n[本条QQ消息附图')
             if actual.startswith('对方发来图片，请根据画面自然回应') or actual.startswith('[收到图片'):actual='（发送了图片或表情）'

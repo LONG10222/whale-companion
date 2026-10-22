@@ -11,3 +11,4 @@ soundfile>=0.13,<0.14
 av>=14,<20
 PyYAML>=6,<7
 pypinyin>=0.55,<1
+qrcode==8.2

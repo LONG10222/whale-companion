@@ -8,7 +8,7 @@ def transcribe(cfg):
     import sherpa_onnx
     folder=Path(cfg['model']);data,sr=sf.read(cfg['audio'],dtype='float32',always_2d=True);data=data.mean(axis=1)
     recognizer=sherpa_onnx.OfflineRecognizer.from_sense_voice(model=str(folder/'model.int8.onnx'),tokens=str(folder/'tokens.txt'),
-        num_threads=4,use_itn=True,language='auto',provider='cpu')
+        num_threads=max(1,min(4,int(cfg.get('threads',4)))),use_itn=True,language='auto',provider='cpu')
     parts=[];chunk=sr*25
     for offset in range(0,len(data),chunk):
         audio=data[offset:offset+chunk]

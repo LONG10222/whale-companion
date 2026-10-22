@@ -10,6 +10,7 @@
 |---|---|---|---|
 | DeepSeek API | [Official docs](https://api-docs.deepseek.com/) | Conversation, vision and search boundary | Application client only |
 | NapCatQQ | [NapNeko/NapCatQQ](https://github.com/NapNeko/NapCatQQ) | Dedicated QQ / OneBot v11 transport | No binaries or login state |
+| python-qrcode | [lincolnloop/python-qrcode](https://github.com/lincolnloop/python-qrcode) | Encode the QR returned by QQ's required device-confirmation flow | Dependency only; no vendored implementation |
 | OpenAI Codex | [Official app-server docs](https://learn.chatgpt.com/docs/app-server) | Optional standard-speed scoped Luna work | Client wrapper only |
 | GPT-SoVITS | [RVC-Boss/GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) | Optional character-reference speech | No upstream runtime or weights |
 | Dania voice reference | [villia/dania on ModelScope](https://modelscope.cn/models/villia/dania) | Local experiments with a Chinese character-inspired voice | No checkpoint or reference audio |
@@ -51,5 +52,7 @@ The short demo uses Meng Haoran's public-domain poem [春晓 / Chunxiao](https:/
 ## Design references / 设计参考
 
 README organization was informed by [AstrBot](https://github.com/AstrBotDevs/AstrBot) and [Clash Verge Rev](https://github.com/clash-verge-rev/clash-verge-rev): clear scope, practical setup, feature status, contribution paths and visible acknowledgements. Their prose, logos and screenshots were not copied. Memory/persona concepts also reference [SillyTavern documentation](https://docs.sillytavern.app/usage/core-concepts/characterdesign/).
+
+Current-turn context and durable memory separation also reference the [LangChain memory documentation](https://docs.langchain.com/oss/python/langchain/short-term-memory). QQ password/CAPTCHA/device-confirmation integration follows the upstream [NapCat login API](https://github.com/NapNeko/NapCatQQ/blob/main/packages/napcat-webui-backend/src/api/QQLogin.ts) and frontend components linked in [QQ_LOGIN.md](docs/QQ_LOGIN.md). Character-reference preparation uses only permitted operator-supplied library entries and retains their original source links; it does not bundle or relicense those images.
 
 License copies in `licenses/` preserve the corresponding upstream notice; they do not change ownership or relicense omitted assets.

@@ -11,7 +11,7 @@ PATTERNS={
 BLOCKED_SUFFIXES={'.sqlite','.sqlite3','.db','.wav','.mp3','.mp4','.onnx','.gguf','.pth','.pt','.ckpt','.safetensors','.zip','.7z','.lnk','.png','.jpg','.jpeg'}
 
 def files():
-    r=subprocess.run(['git','ls-files','-z'],cwd=ROOT,capture_output=True)
+    r=subprocess.run(['git','ls-files','--cached','--others','--exclude-standard','-z'],cwd=ROOT,capture_output=True)
     if r.returncode==0:return [ROOT/p for p in r.stdout.decode('utf-8').split('\0') if p]
     return [p for p in ROOT.rglob('*') if p.is_file() and not any(x in p.relative_to(ROOT).parts for x in {'.git','__pycache__','workspace','data','logs','cache','.venv'}) and '.local.' not in p.name and p.name!='.release-owned']
 
