@@ -45,6 +45,18 @@ class ProactiveTests(unittest.TestCase):
         self.assertEqual(self.sent,[('send_private_msg',{'user_id':int(self.peer),'message':[{'type':'text','data':{'text':d['message']}}]})])
         with self.assertRaises(ValueError):self.service.send_manual(d['id'],d['message'])
         self.assertEqual(len(self.sent),1)
+    def test_confirmed_receipt_retains_original_bot_after_account_switch(self):
+        draft=self.draft()
+        def send(*args,**kwargs):
+            self.bridge.cfg['locked_bot_id']='22222222'
+            self.bridge.configure(False,'22222222',[self.peer],True)
+            return {'message_id':42}
+        self.bridge.call=send
+        self.assertTrue(self.service.send_manual(draft['id'],draft['message'])['memory_saved'])
+        with self.memory.learning.db() as db:
+            rows=db.execute('SELECT bot FROM channel_deliveries').fetchall()
+        self.assertEqual([row[0] for row in rows],[self.bot])
+
     def test_quiet_hours_prevent_auto_generation_and_manual_send(self):
         self.now=datetime(2026,10,21,23,tzinfo=ZONE).timestamp();self.service.tick();self.assertFalse(self.calls)
         d=self.draft()

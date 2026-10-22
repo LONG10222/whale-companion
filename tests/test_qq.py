@@ -43,6 +43,17 @@ class QQTests(unittest.TestCase):
         def fail(*a,**kw):self.sent.append(a);raise RuntimeError('no receipt')
         self.bridge.call=fail;self.bridge.accept(self.obj,'connection-one');self.settle()
         self.assertEqual(len(self.sent),1);self.assertFalse(self.bridge.accept(self.obj,'connection-one'))
+    def test_receipt_keeps_sending_bot_when_account_changes_during_send(self):
+        def send(action,params=None,timeout=20):
+            self.sent.append((action,params))
+            self.bridge.configure(False,'22222222',['87654321'],True)
+            return {'message_id':42}
+        self.bridge.call=send
+        self.assertTrue(self.bridge.accept(self.obj,'connection-one'));self.settle()
+        with self.chat.memory.learning.db() as db:
+            rows=db.execute('SELECT peer,bot,remote_id FROM channel_deliveries').fetchall()
+        self.assertEqual([tuple(row) for row in rows],[('87654321','12345678','42')])
+
     def test_token_is_not_exposed_by_status(self):
         self.assertNotIn(self.bridge.cfg['onebot_token'],json.dumps(self.bridge.snapshot()))
     def test_locked_test_contact_cannot_be_expanded(self):

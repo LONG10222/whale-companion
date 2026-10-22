@@ -41,6 +41,18 @@ class CreativeTests(unittest.TestCase):
         again=self.service.request(self.peer,'delegate_codex',self.args,'让Codex写个文件',context);self.assertEqual(r['job_id'],again['job_id'])
         self.chat.memory.state(self.bot,'one','sent');self.worker.wait.set();self.settle();self.assertEqual(len(self.worker.calls),1);self.assertEqual(len(self.out),1)
         self.assertEqual(self.service.recent()[0]['delivery'],'sent');self.service.deliver(r['job_id']);self.assertEqual(len(self.out),1)
+    def test_confirmed_async_receipt_retains_original_bot_after_account_switch(self):
+        result=self.service.request(self.peer,'delegate_codex',self.args,'让Codex写文件');self.settle()
+        def send(*args,**kwargs):
+            self.bridge.cfg['locked_bot_id']='22222222'
+            self.bridge.configure(False,'22222222',[self.peer],True)
+            return {'message_id':42}
+        self.bridge.call=send
+        self.assertTrue(self.service.deliver(result['job_id'],owner=True)['sent'])
+        with self.chat.memory.learning.db() as db:
+            rows=db.execute('SELECT bot FROM channel_deliveries').fetchall()
+        self.assertEqual([row[0] for row in rows],[self.bot])
+
     def test_missing_origin_other_peer_or_media_cannot_delegate(self):
         for peer,text,context in [(self.peer,'看看这个视频',None),('99999999','让Codex写文件',None),(self.peer,'让Codex写文件',{'bot':self.bot,'mid':'unknown','deliver':True,'epoch':'one'})]:
             with self.assertRaises(ValueError):self.service.request(peer,'delegate_codex',self.args,text,context)
@@ -88,13 +100,13 @@ class CreativeTests(unittest.TestCase):
 
 class PolicyAndBubbleTests(unittest.TestCase):
     def test_text_face_then_sticker_is_majority_but_both_layouts_exist(self):
-        r={'reply':'收到啦','attachments':[{'kind':'face','id':'20'},{'kind':'image','path':'C:/safe/sticker.png'}]}
+        r={'reply':'收到啦','attachments':[{'kind':'face','id':'20'},{'kind':'image','path':str(Path(tempfile.gettempdir())/'safe'/'sticker.png')}]}
         packets=[batches(r,str(i)) for i in range(400)];split=sum(len(p)==2 for p in packets)
         self.assertGreater(split,260);self.assertLess(split,340)
         packet=next(p for p in packets if len(p)==2);self.assertEqual([s['type'] for s in packet[0]],['text','face']);self.assertEqual(packet[1][0]['type'],'image')
         self.assertEqual(len(batches(r,'any','combined')),1);self.assertEqual(len(batches(r,'any','separate')),2)
     def test_original_drawing_is_a_normal_image_and_voice_is_separate(self):
-        r={'reply':'画好了','attachments':[{'kind':'image','path':'C:/safe/drawing.png','sticker':False},{'kind':'record','path':'C:/safe/song.wav'}]}
+        r={'reply':'画好了','attachments':[{'kind':'image','path':str(Path(tempfile.gettempdir())/'safe'/'drawing.png'),'sticker':False},{'kind':'record','path':str(Path(tempfile.gettempdir())/'safe'/'song.wav')}]}
         b=batches(r,'test','separate');self.assertEqual(b[1][0]['data']['sub_type'],0);self.assertEqual(b[2][0]['type'],'record')
     def test_profile_denies_outside_reads_and_only_grants_requested_read_path(self):
         with tempfile.TemporaryDirectory() as td:

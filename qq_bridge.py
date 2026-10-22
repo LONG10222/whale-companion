@@ -252,7 +252,7 @@ class QQBridge:
                 descriptions='；'.join(item.get('caption','') for item in result['attachments'] if item['kind']=='image' and item.get('caption'))
                 if descriptions:delivery_summary+='\n[本轮已发送表情的内容记录，仅供后续追问参考：'+descriptions[:600]+']'
             local_id=self.chat.memory.add(peer,'assistant',delivery_summary);history_recorded=True
-            for remote_id in delivery_ids:self.chat.memory.learning.delivery(peer,remote_id,local_id)
+            for remote_id in delivery_ids:self.chat.memory.learning.delivery(peer,remote_id,local_id,bot=bot)
             for item in result['attachments']:
                 if item['kind']=='image':self.chat.memory.sticker_sent(peer,item['id'])
             self.event('sent','QQ已返回消息编号，回复已提交。')
@@ -263,7 +263,7 @@ class QQBridge:
             if confirmed_packets and result is not None and not history_recorded:
                 from qq_delivery import confirmed_history
                 local_id=self.chat.memory.add(peer,'assistant',confirmed_history(result,confirmed_packets,partial=True))
-                for remote_id in delivery_ids:self.chat.memory.learning.delivery(peer,remote_id,local_id)
+                for remote_id in delivery_ids:self.chat.memory.learning.delivery(peer,remote_id,local_id,bot=bot)
                 sent_files={segment.get('data',{}).get('file') for packet in confirmed_packets for segment in packet if segment['type']=='image'}
                 for item in result.get('attachments',[]):
                     if item['kind']=='image' and Path(item['path']).as_uri() in sent_files:self.chat.memory.sticker_sent(peer,item['id'])

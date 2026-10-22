@@ -80,8 +80,8 @@ class LearningStore:
     def channel_bot(self):
         path=self.root/'qq.local.json'
         return str(json.loads(path.read_text(encoding='utf-8')).get('bot_id','')) if path.exists() else ''
-    def delivery(self,peer,remote_id,local_id):
-        with self.db() as db:db.execute('INSERT OR REPLACE INTO channel_deliveries VALUES(?,?,?,?)',(peer,self.channel_bot(),str(remote_id),local_id))
+    def delivery(self,peer,remote_id,local_id,*,bot=None):
+        with self.db() as db:db.execute('INSERT OR REPLACE INTO channel_deliveries VALUES(?,?,?,?)',(peer,self.channel_bot() if bot is None else str(bot),str(remote_id),local_id))
     def target(self,peer,message_id=None,remote_id=None):
         if remote_id is not None:
             with self.db() as db:row=db.execute('SELECT local_id FROM channel_deliveries WHERE peer=? AND bot=? AND remote_id=?',(peer,self.channel_bot(),str(remote_id))).fetchone()

@@ -1,8 +1,8 @@
 """Bounded public web search/read tools. Returned content is untrusted reference data."""
-import html,ipaddress,json,re,socket,urllib.parse,urllib.request,urllib.error
+import html,http.client,ipaddress,json,re,socket,urllib.parse,urllib.request,urllib.error
 from html.parser import HTMLParser
 
-def validate_public_url(url):
+def _public_addresses(url):
     parsed=urllib.parse.urlsplit(url)
     if parsed.scheme!='https' or not parsed.hostname or parsed.username or parsed.password:
         raise ValueError('Only public HTTPS pages are supported')
@@ -10,15 +10,57 @@ def validate_public_url(url):
     addresses=socket.getaddrinfo(parsed.hostname,443,type=socket.SOCK_STREAM)
     if not addresses or any(not ipaddress.ip_address(x[4][0]).is_global for x in addresses):
         raise ValueError('Local/private network addresses are not web sources')
+    return addresses
+
+
+def validate_public_url(url):
+    _public_addresses(url)
     return url
+
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self,*args,**kwargs):return None
 
+
+class PublicHTTPSConnection(http.client.HTTPSConnection):
+    """Connect to vetted numeric addresses, with TLS still checking the URL host."""
+    def __init__(self,host,*,addresses,**kwargs):
+        super().__init__(host,**kwargs)
+        self.addresses=addresses
+        # HTTPSConnection.connect wraps this socket using self.host for SNI and
+        # certificate validation. Do not use create_connection: it resolves again.
+        self._create_connection=self._connect_public
+
+    def _connect_public(self,address,timeout=socket._GLOBAL_DEFAULT_TIMEOUT,source_address=None):
+        error=None
+        for family,kind,protocol,_,sockaddr in self.addresses:
+            sock=socket.socket(family,kind,protocol)
+            try:
+                if timeout is not socket._GLOBAL_DEFAULT_TIMEOUT:sock.settimeout(timeout)
+                if source_address:sock.bind(source_address)
+                sock.connect(sockaddr)
+                return sock
+            except OSError as exc:
+                error=exc;sock.close()
+        raise error or OSError('No public addresses available')
+
+
+class PublicHTTPSHandler(urllib.request.HTTPSHandler):
+    def __init__(self,addresses):
+        super().__init__();self.addresses=addresses
+
+    def https_open(self,request):
+        def connection(host,**kwargs):
+            return PublicHTTPSConnection(host,addresses=self.addresses,**kwargs)
+        return self.do_open(connection,request,context=self._context)
+
+
 def public_get(url):
-    opener=urllib.request.build_opener(NoRedirect)
     for _ in range(5):
-        validate_public_url(url)
+        addresses=_public_addresses(url)
+        # A proxy would select the destination itself, invalidating our DNS
+        # validation. Resolve and pin each redirect independently, without proxies.
+        opener=urllib.request.build_opener(urllib.request.ProxyHandler({}),NoRedirect,PublicHTTPSHandler(addresses))
         request=urllib.request.Request(url,headers={'User-Agent':'DeepseekCompanion/1.0 (local personal research tool)'})
         try:
             with opener.open(request,timeout=25) as response:
@@ -26,9 +68,11 @@ def public_get(url):
                 if len(data)>2*1024**2:raise ValueError('Page exceeds the 2 MiB reading limit')
                 return data.decode(response.headers.get_content_charset() or 'utf-8',errors='replace'),url
         except urllib.error.HTTPError as exc:
-            if exc.code in (301,302,303,307,308) and exc.headers.get('Location'):
-                url=urllib.parse.urljoin(url,exc.headers['Location']);continue
-            raise
+            try:
+                if exc.code in (301,302,303,307,308) and exc.headers.get('Location'):
+                    url=urllib.parse.urljoin(url,exc.headers['Location']);continue
+                raise
+            finally:exc.close()
     raise ValueError('Too many page redirects')
 
 class PageText(HTMLParser):
