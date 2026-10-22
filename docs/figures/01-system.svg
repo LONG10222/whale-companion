@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="840" viewBox="0 0 1280 840" role="img" aria-labelledby="title desc">
+<title id="title">01  系统架构与数据边界</title><desc id="desc">Windows 优先 · 实线表示实现中的主要交互 · 外部服务仅接收任务所需输入</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/></marker></defs>
+<rect width="1280" height="840" fill="#fff"/>
+<text x="40" y="40" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="27" font-weight="600" fill="#1e293b" text-anchor="start">01  系统架构与数据边界</text>
+<text x="40" y="83" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="15" font-weight="400" fill="#1e293b" text-anchor="start">Windows 优先 · 实线表示实现中的主要交互 · 外部服务仅接收任务所需输入</text>
+<polyline points="290,200 350,200" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+<polyline points="545,265 545,335" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+<polyline points="290,410 350,410" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+<polyline points="740,365 795,365 795,200 850,200" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+<polyline points="740,430 850,430" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+<polyline points="1040,265 1040,300 680,300 680,335" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+<polyline points="1040,490 1040,525 690,525 690,490" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+<polyline points="545,490 545,565" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+<polyline points="350,625 315,625 315,295 165,295 165,265" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="40" y="135" width="250" height="130" fill="#f8fafc" stroke="#c5d0dc"/>
+<text x="165.0" y="183.0" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="18" font-weight="600" fill="#1e3a56" text-anchor="middle">QQ 私聊 / NapCat</text>
+<text x="165.0" y="214.0" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="15" font-weight="400" fill="#334155" text-anchor="middle">OneBot v11 事件与回执</text>
+<text x="165.0" y="238.0" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="15" font-weight="400" fill="#334155" text-anchor="middle">独立机器人账号 / 好友白名单</text>
+<rect x="350" y="135" width="390" height="130" fill="#f8fafc" stroke="#c5d0dc"/>
+<text x="545.0" y="183.0" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="18" font-weight="600" fill="#1e3a56" text-anchor="middle">本机服务与传输层</text>
+<text x="545.0" y="214.0" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="15" font-weight="400" fill="#334155" text-anchor="middle">phone_server → qq_routes → QQBridge</text>
+<text x="545.0" y="238.0" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="15" font-weight="400" fill="#334155" text-anchor="middle">身份 / epoch / 去重 / 合并 / 媒体预处理</text>
+<rect x="850" y="135" width="380" height="130" fill="#eaf1f8" stroke="#6d91b3"/>
+<text x="1040.0" y="183.0" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="18" font-weight="600" fill="#1e3a56" text-anchor="middle">DeepSeek 云端 API</text>
+<text x="1040.0" y="214.0" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="15" font-weight="400" fill="#334155" text-anchor="middle">对话 / 视觉 / 工具选择</text>
+<text x="1040.0" y="238.0" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="15" font-weight="400" fill="#334155" text-anchor="middle">文本、图像和工具结果按需出站</text>
+<rect x="350" y="335" width="390" height="155" fill="#f8fafc" stroke="#c5d0dc"/>
+<text x="545.0" y="383.5" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="18" font-weight="600" fill="#1e3a56" text-anchor="middle">会话编排 QQConversation</text>
+<text x="545.0" y="414.5" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="15" font-weight="400" fill="#334155" text-anchor="middle">人格与同联系人上下文</text>
+<text x="545.0" y="438.5" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="15" font-weight="400" fill="#334155" text-anchor="middle">本轮意图 / 权限 / 工具约束</text>
+<text x="545.0" y="462.5" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="15" font-weight="400" fill="#334155" text-anchor="middle">输出校验与分包</text>
+<rect x="40" y="335" width="250" height="155" fill="#f8fafc" stroke="#c5d0dc"/>
+<text x="165.0" y="383.5" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="18" font-weight="600" fill="#1e3a56" text-anchor="middle">本机状态与媒体</text>
+<text x="165.0" y="414.5" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="15" font-weight="400" fill="#334155" text-anchor="middle">SQLite 记忆 / 反馈 / 任务</text>
+<text x="165.0" y="438.5" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="15" font-weight="400" fill="#334155" text-anchor="middle">用量日志 / 私有媒体缓存</text>
+<text x="165.0" y="462.5" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="15" font-weight="400" fill="#334155" text-anchor="middle">角色卡与本地配置</text>
+<rect x="850" y="335" width="380" height="155" fill="#f8fafc" stroke="#c5d0dc"/>
+<text x="1040.0" y="383.5" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="18" font-weight="600" fill="#1e3a56" text-anchor="middle">可选执行服务</text>
+<text x="1040.0" y="414.5" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="15" font-weight="400" fill="#334155" text-anchor="middle">Codex CLI / 公开网页研究</text>
+<text x="1040.0" y="438.5" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="15" font-weight="400" fill="#334155" text-anchor="middle">本地语音合成 / 歌声生成</text>
+<text x="1040.0" y="462.5" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="15" font-weight="400" fill="#334155" text-anchor="middle">依赖、模型与素材需自行配置</text>
+<rect x="350" y="565" width="390" height="120" fill="#eaf1f8" stroke="#6d91b3"/>
+<text x="545.0" y="608.0" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="18" font-weight="600" fill="#1e3a56" text-anchor="middle">逐包发送与确认</text>
+<text x="545.0" y="639.0" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="15" font-weight="400" fill="#334155" text-anchor="middle">每包重验接收范围</text>
+<text x="545.0" y="663.0" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="15" font-weight="400" fill="#334155" text-anchor="middle">QQ message_id → 确认历史与回执</text>
+<rect x="40" y="735" width="1190" height="64" fill="#fff" stroke="#c5d0dc"/>
+<text x="635.0" y="762.0" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="18" font-weight="600" fill="#1e3a56" text-anchor="middle">实现范围</text>
+<text x="635.0" y="793.0" font-family="Noto Sans CJK SC,Microsoft YaHei,sans-serif" font-size="15" font-weight="400" fill="#334155" text-anchor="middle">未接通微信 / 群聊发送 / 主动加好友 / QQ 空间；主动聊天默认只生成草稿。</text>
+</svg>

@@ -1,0 +1,99 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" agent="Whale documentation" version="24.7.17">
+  <diagram id="01-system" name="01  系统架构与数据边界">
+    <mxGraphModel dx="1280" dy="840" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1280" pageHeight="840" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="01  系统架构与数据边界" style="text;html=0;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Noto Sans CJK SC;fontSize=27;fontColor=#1e293b;" vertex="1" parent="1">
+          <mxGeometry x="40" y="12" width="1200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="Windows 优先 · 实线表示实现中的主要交互 · 外部服务仅接收任务所需输入" style="text;html=0;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Noto Sans CJK SC;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
+          <mxGeometry x="40" y="55" width="1200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="edge0" value="" style="exitX=1.0;exitY=0.5;entryX=0.0;entryY=0.5;exitPerimeter=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=13;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="qq" target="entry">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge1" value="" style="exitX=0.5;exitY=1.0;entryX=0.5;entryY=0.0;exitPerimeter=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=13;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="entry" target="turn">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge2" value="" style="exitX=1.0;exitY=0.4838709677419355;entryX=0.0;entryY=0.4838709677419355;exitPerimeter=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=13;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="db" target="turn">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge3" value="" style="exitX=1.0;exitY=0.1935483870967742;entryX=0.0;entryY=0.5;exitPerimeter=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=13;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="turn" target="ds">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="795" y="365" />
+              <mxPoint x="795" y="200" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge4" value="" style="exitX=1.0;exitY=0.6129032258064516;entryX=0.0;entryY=0.6129032258064516;exitPerimeter=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=13;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="turn" target="tools">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge5" value="" style="exitX=0.5;exitY=1.0;entryX=0.8461538461538461;entryY=0.0;exitPerimeter=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=13;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="ds" target="turn">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1040" y="300" />
+              <mxPoint x="680" y="300" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge6" value="" style="exitX=0.5;exitY=1.0;entryX=0.8717948717948718;entryY=1.0;exitPerimeter=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=13;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="tools" target="turn">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1040" y="525" />
+              <mxPoint x="690" y="525" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge7" value="" style="exitX=0.5;exitY=1.0;entryX=0.5;entryY=0.0;exitPerimeter=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=13;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="turn" target="out">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge8" value="" style="exitX=0.0;exitY=0.5;entryX=0.5;entryY=1.0;exitPerimeter=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=13;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="out" target="qq">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="315" y="625" />
+              <mxPoint x="315" y="295" />
+              <mxPoint x="165" y="295" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="qq" value="QQ 私聊 / NapCat&#10;&#10;OneBot v11 事件与回执&#10;独立机器人账号 / 好友白名单" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f8fafc;strokeColor=#c5d0dc;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#334155;align=center;verticalAlign=middle;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="135" width="250" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="entry" value="本机服务与传输层&#10;&#10;phone_server → qq_routes → QQBridge&#10;身份 / epoch / 去重 / 合并 / 媒体预处理" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f8fafc;strokeColor=#c5d0dc;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#334155;align=center;verticalAlign=middle;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="350" y="135" width="390" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="ds" value="DeepSeek 云端 API&#10;&#10;对话 / 视觉 / 工具选择&#10;文本、图像和工具结果按需出站" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#eaf1f8;strokeColor=#6d91b3;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#334155;align=center;verticalAlign=middle;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="850" y="135" width="380" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="turn" value="会话编排 QQConversation&#10;&#10;人格与同联系人上下文&#10;本轮意图 / 权限 / 工具约束&#10;输出校验与分包" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f8fafc;strokeColor=#c5d0dc;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#334155;align=center;verticalAlign=middle;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="350" y="335" width="390" height="155" as="geometry" />
+        </mxCell>
+        <mxCell id="db" value="本机状态与媒体&#10;&#10;SQLite 记忆 / 反馈 / 任务&#10;用量日志 / 私有媒体缓存&#10;角色卡与本地配置" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f8fafc;strokeColor=#c5d0dc;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#334155;align=center;verticalAlign=middle;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="335" width="250" height="155" as="geometry" />
+        </mxCell>
+        <mxCell id="tools" value="可选执行服务&#10;&#10;Codex CLI / 公开网页研究&#10;本地语音合成 / 歌声生成&#10;依赖、模型与素材需自行配置" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f8fafc;strokeColor=#c5d0dc;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#334155;align=center;verticalAlign=middle;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="850" y="335" width="380" height="155" as="geometry" />
+        </mxCell>
+        <mxCell id="out" value="逐包发送与确认&#10;&#10;每包重验接收范围&#10;QQ message_id → 确认历史与回执" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#eaf1f8;strokeColor=#6d91b3;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#334155;align=center;verticalAlign=middle;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="350" y="565" width="390" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="limit" value="实现范围&#10;&#10;未接通微信 / 群聊发送 / 主动加好友 / QQ 空间；主动聊天默认只生成草稿。" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#fff;strokeColor=#c5d0dc;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#334155;align=center;verticalAlign=middle;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="735" width="1190" height="64" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
