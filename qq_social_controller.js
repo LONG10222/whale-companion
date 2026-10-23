@@ -34,17 +34,17 @@
       try {
         const result = await api('/qq/social/config', {enabled:enabled === true});
         state.enabled = result.enabled === true;
-        state.notice = state.enabled ? '已手动启用。每项操作仍需单独预览和确认；重启后会关闭。' : '社交已关闭，待确认预览已清除。';
+        state.notice = state.uncertain ? '上次结果仍不确定。先到 QQ 人工核对；开关变更不会重新执行操作。' : state.enabled ? '已手动启用。每项操作仍需单独预览和确认；重启后会关闭。' : '社交已关闭，待确认预览已清除。';
       } catch (e) {
         state.connected = false; state.ready = false; state.enabled = false;
-        state.notice = '开关状态未确认。请手动重新连接核对，未自动重试。';
+        state.notice = state.uncertain ? '上次操作及当前开关状态未确认，请到 QQ 人工核对；不会自动重试。' : '开关状态未确认。请手动重新连接核对，未自动重试。';
       } finally { state.busy = false; emit(); }
     }
     async function requests() {
       if (state.busy || !state.connected || !state.enabled || !state.ready) return [];
       invalidate('刷新会清除待确认预览。'); state.busy = true; emit();
       try { const result = await api('/qq/social/requests'); return result.requests || []; }
-      catch (e) { state.connected = false; state.enabled = false; state.ready = false; state.notice = '无法读取申请。请核对 QQ 连接；只显示本次连接实际收到的申请。'; return []; }
+      catch (e) { state.connected = false; state.enabled = false; state.ready = false; state.notice = state.uncertain ? '上次结果仍不确定，请先到 QQ 人工核对；当前申请列表也未能读取。' : '无法读取申请。请核对 QQ 连接；只显示本次连接实际收到的申请。'; return []; }
       finally { state.busy = false; emit(); }
     }
     async function prepare(operation) {

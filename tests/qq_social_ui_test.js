@@ -47,6 +47,7 @@ const op={kind:'qzone_text',content:'test',audience:'self'};
   assert.equal(f.calls.filter(x=>x.path.endsWith('/confirm')).length,1,'unknown never retries');
   assert.equal(c.state.uncertain,true);assert.ok(c.state.notice.includes('人工核对'));
   c.invalidate('edited');assert.ok(c.state.notice.includes('人工核对'),'unknown warning cannot be erased by editing');
+  await c.configure(false);assert.ok(c.state.notice.includes('人工核对'),'switch keeps unknown warning');
   c.afterManualCheck();assert.equal(c.state.lastAttempt,null);
   const failing=createController(async()=>{throw Error('offline')});
   await failing.connect();assert.equal(failing.state.connected,false);assert.equal(failing.state.enabled,false);
@@ -61,9 +62,9 @@ const op={kind:'qzone_text',content:'test',audience:'self'};
   }
   const html=fs.readFileSync('qq_social.html','utf8');
   const elements={};for(const [,id] of html.matchAll(/id="([^"]+)"/g))elements[id]=new Element(id);
-  let domCalls=[];
+  let domCalls=[], nextPrepare=null;
   const document={getElementById:id=>elements[id],createElement:()=>new Element(),
-    querySelectorAll:()=>[],addEventListener:()=>{},hidden:false};
+    querySelectorAll:()=>[],listeners:{},addEventListener(type,fn){this.listeners[type]=fn;},hidden:false};
   const response=data=>({ok:true,status:200,json:async()=>data});
   const dangerous='<img src=x onerror=alert(1)>';
   const fetch=async(path,options)=>{
@@ -72,9 +73,10 @@ const op={kind:'qzone_text',content:'test',audience:'self'};
     if(path==='/qq/social/status')return response({enabled:true});
     if(path==='/qq/status')return response({connected:true,account_matches:true,enabled:true,login_id:'12345678'});
     if(path==='/qq/social/requests')return response({requests:[{id:'safe-id',user_id:'87654321',comment:dangerous}]});
+    if(path==='/qq/social/prepare' && nextPrepare)return nextPrepare;
     if(path==='/qq/social/prepare')return response({nonce:'secret-nonce',expires:Date.now()/1000+120,
       preview:{kind:'qzone_text',bot:'12345678',content:dangerous,audience:'self',audience_label:'仅自己可见'}});
-    if(path==='/qq/social/confirm')throw Error('network uncertain');
+    if(path==='/qq/social/confirm')return {ok:false,status:401,json:async()=>({detail:'expired session'})};
     throw Error('unexpected '+path);
   };
   const window={fetch,addEventListener:()=>{}};
@@ -93,11 +95,24 @@ const op={kind:'qzone_text',content:'test',audience:'self'};
   elements.postForm.listeners.submit({preventDefault(){}});await new Promise(r=>setImmediate(r));
   assert.equal(elements.reviewContent.textContent,dangerous,'preview remains literal text');
   assert.equal(elements.confirmAction.disabled,true,'explicit checkbox initially required');
+  let resolvePrepare;
+  nextPrepare=new Promise(resolve=>resolvePrepare=resolve);
+  elements.postContent.listeners.input();
+  elements.postForm.listeners.submit({preventDefault(){}});
+  document.hidden=true;document.listeners.visibilitychange();
+  resolvePrepare(response({nonce:'stale',expires:Date.now()/1000+120,
+    preview:{kind:'qzone_text',bot:'12345678',content:'stale',audience:'self',audience_label:'仅自己可见'}}));
+  await new Promise(r=>setImmediate(r));
+  assert.equal(elements.review.hidden,true,'hidden during prepare discards the late response');
+  assert.equal(elements.confirmAction.disabled,true);
+  document.hidden=false;nextPrepare=null;
+  elements.postForm.listeners.submit({preventDefault(){}});await new Promise(r=>setImmediate(r));
   elements.reviewChecked.checked=true;elements.reviewChecked.listeners.change();
   elements.confirmAction.listeners.click();elements.confirmAction.listeners.click();
   await new Promise(r=>setImmediate(r));
   assert.equal(domCalls.filter(x=>x.path==='/qq/social/confirm').length,1);
   assert.ok(elements.notice.textContent.includes('人工核对'));
+  assert.equal(domCalls.filter(x=>x.path==='/local/session').length,1,'401 does not renew session');
   assert.equal(elements.confirmAction.hidden,true,'consumed confirmation cannot be clicked again');
   console.log('DOM offline safety assertions passed (not a browser visual test)');
 })().catch(e=>{console.error(e);process.exitCode=1});

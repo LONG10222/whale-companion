@@ -114,7 +114,7 @@
     render(manager.state);
   });
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden && !manager.state.busy) manager.invalidate('离开页面后旧确认已清除，请重新预览。');
+    if (document.hidden) manager.invalidate('离开页面后旧确认已清除，请重新预览。');
   });
   window.addEventListener('pagehide', () => manager.invalidate());
   setInterval(() => manager.tick(), 1000);
