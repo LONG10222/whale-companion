@@ -1,7 +1,7 @@
 """Independent loopback phone test service; keeps the voice service running."""
 from contextlib import asynccontextmanager
 from pathlib import Path
-import json, secrets
+import json, secrets, os
 from fastapi import FastAPI, Header, HTTPException, Depends,Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.exceptions import RequestValidationError
@@ -10,15 +10,17 @@ import uvicorn
 from mobile_routes import register_mobile_routes
 
 ROOT = Path(__file__).resolve().parent
+SAFE_DEPLOYMENT = os.environ.get('WHALE_SAFE_START') == '1'
 CONFIG = json.loads((ROOT/'settings.local.json').read_text(encoding='utf-8'))
 
 @asynccontextmanager
 async def lifespan(app):
-    QQ_SERVICE.start()
-    QQ_SERVICE.login_manager.start()
-    PROACTIVE_SERVICE.start()
-    LIFE_SERVICE.start()
-    BALANCE_SERVICE.start()
+    if not SAFE_DEPLOYMENT:
+        QQ_SERVICE.start()
+        QQ_SERVICE.login_manager.start()
+        PROACTIVE_SERVICE.start()
+        LIFE_SERVICE.start()
+        BALANCE_SERVICE.start()
     yield
     QQ_SERVICE.login_manager.close()
     LIFE_SERVICE.close()
@@ -97,3 +99,8 @@ if __name__ == '__main__':
     # interrupting the voice service or issuing process-kill commands.
     uvicorn.run('phone_server:app',host='127.0.0.1',port=18766,reload=True,
                 reload_dirs=[str(ROOT)],access_log=False)
+
+# Safe deployment is opt-in for the new launcher; legacy startup remains unchanged.
+if SAFE_DEPLOYMENT:
+    from deployment_mode import register_deployment_mode
+    DEPLOYMENT_GATE = register_deployment_mode(app, ROOT, QQ_SERVICE, authorize)

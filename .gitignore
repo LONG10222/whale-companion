@@ -46,3 +46,6 @@ __pycache__/
 *.py[cod]
 .release-owned
 release-audit*.json
+
+# Local deployment concurrency guard
+.whale-deploy.lock
