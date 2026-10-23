@@ -46,7 +46,9 @@ def register_local_sessions(app,root,api_token,port=18766):
         if request.method=='GET' and response.headers.get('content-type','').startswith('text/html'):
             body=b''.join([chunk async for chunk in response.body_iterator]);text=body.decode('utf-8')
             tag='<script src="/local/session.js" defer></script>'
-            text=text.replace('</html>',tag+'</html>') if '</html>' in text else text+tag
+            # Social confirmations must never use the generic 401 retry wrapper.
+            if request.url.path != '/qq/social':
+                text=text.replace('</html>',tag+'</html>') if '</html>' in text else text+tag
             headers=dict(response.headers);headers.pop('content-length',None);headers.update({'Cache-Control':'no-store','X-Frame-Options':'DENY','Referrer-Policy':'same-origin'})
             return Response(text,status_code=response.status_code,headers=headers)
         return response
