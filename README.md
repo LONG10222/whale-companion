@@ -4,7 +4,7 @@
 
 **让 QQ 里的 AI 能记事、接梗和使用工具，同时把权限、用量和本机资源管住。**
 
-[English](README.en.md) · [快速开始](#快速开始) · [实现原理](docs/ARCHITECTURE.md) · [构建过程](docs/BUILD_LOG.md) · [素材与依赖来源](ATTRIBUTIONS.md)
+[English](README.en.md) · [快速开始](#快速开始) · [配置要求](#最低配置与推荐配置) · [实现原理](docs/ARCHITECTURE.md) · [构建过程](docs/BUILD_LOG.md) · [素材与依赖来源](ATTRIBUTIONS.md)
 
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![Platform](https://img.shields.io/badge/Platform-Windows-0078D4)
@@ -140,6 +140,24 @@ PR #1 的自动化证据：[Windows Checks](https://github.com/LONG10222/whale-c
 依据与核验范围：[Windows/Python 3.12 CI](.github/workflows/check.yml)、[基础依赖](requirements.txt)、[安装说明](docs/SETUP.md)、[上游模型与许可来源](ATTRIBUTIONS.md)。自动化测试不等于低配压力测试、真实 QQ 验收或所有平台支持；macOS/Linux 不在本节的一键部署承诺范围内。
 
 ## 快速开始
+
+### Windows 一键部署入口（独立测试提案）
+
+**新增引导式部署见 [PR #5](https://github.com/LONG10222/whale-companion/pull/5)，尚未合并 main。** 本文档分支也不包含部署脚本；要试用请查看 [部署分支](https://github.com/LONG10222/whale-companion/tree/feat/windows-bootstrap) 的完整源码和 [详细说明](https://github.com/LONG10222/whale-companion/blob/feat/windows-bootstrap/docs/WINDOWS_BOOTSTRAP.md)，不要只下载单个脚本或把不同分支文件混在一起。
+
+“一键”指双击进入统一的环境检查、依赖安装与安全启动入口，**不是免配置、静默安装所有程序、自动登录 QQ 或自动发消息**。首次仍有以下必要步骤：
+
+1. 自行从 [Python 官方 Windows 下载页](https://www.python.org/downloads/windows/) 安装 **Python 3.12 64 位及 py 启动器**。部署程序不安装系统 Python，不提权，也不修改 PATH、防火墙或 PowerShell 执行策略。
+2. 把部署分支的完整源码解压到自己的可写目录，双击 `deploy-whale.cmd`，选 1；首次明确输入 `INSTALL` 后，才从 PyPI 安装基础依赖到项目内 `.venv`。不安装 GPU 模型、Clash 或 ChatGPT，基础启动也不依赖后两者。
+3. 没有配置时会打开本机说明页 `http://127.0.0.1:18767`。重新双击入口，选 2，明确输入 `CREATE` 后，填写管理员／机器人 QQ 号并创建本机访问凭据；已有或不完整配置都不会被自动覆盖。
+4. 配置齐全后进入实际应用的安全部署页 `http://127.0.0.1:18766/deployment`。API Key 如需保存，须本人输入、勾选持久保存同意并点击；已有 Key 不回显，也不自动联网查余额或验证额度。
+5. 按 NapCat 官方说明另行准备独立客户端。核对机器人账号和白名单后，再在安全页逐次确认连接；二维码、手机确认和安全验证由本人完成。**连接后仍暂停回复**，需到 QQ 管理页决定是否开启。
+
+重复运行会核对 Python、依赖与需求文件指纹，健康环境直接复用，不默认升级；端口冲突、异常环境或未完成换号会停止或拒绝连接，而不是杀掉其他程序或重置私人数据。启动器不自动恢复主动聊天、生活调度或余额轮询。关闭菜单不等于关闭另一个控制台中的服务。
+
+**验证边界：** 这是独立开发提案，不是已发布的安装包。离线单元测试与 CI 只能证明其覆盖的逻辑；真实干净 Windows 安装、完整浏览器操作和真实 QQ 账号验收需另行完成。依赖目前使用版本范围，尚非全量哈希锁定的可复现发行包；下载失败可能留下部分环境，故不会把失败标记为成功。不要直接覆盖旧实例，先备份本机私有配置与数据。
+
+下方保留 main 的手动安装流程；未选择测试提案时请按手动流程操作。
 
 ### 1. 准备环境
 
