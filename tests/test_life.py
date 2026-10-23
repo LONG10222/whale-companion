@@ -19,7 +19,7 @@ def call(name,args):return {'content':None,'tool_calls':[{'id':'call1','type':'f
 
 class MemoryTests(unittest.TestCase):
     def setUp(self):
-        self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name);self.peer='owner';self.chat=ChatMemory(self.root/'data/qq');self.mem=self.chat.life
+        self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name);self.peer='long';self.chat=ChatMemory(self.root/'data/qq');self.mem=self.chat.life
     def tearDown(self):self.tmp.cleanup()
     def add(self,text='我喜欢鸣潮，尤其喜欢探索地图。',kind='preference',topic='鸣潮',**kw):
         mid=self.chat.add(self.peer,'user',text)
@@ -70,7 +70,7 @@ class ServiceTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name);self.peer='87654321';self.bot='12345678';self.now=datetime(2026,10,21,15,tzinfo=ZONE).timestamp()
         persona=PersonaStore(self.root);persona.save(dania_card());self.chat=SimpleNamespace(memory=ChatMemory(self.root/'data/qq',persona),persona=persona)
-        self.bridge=QQBridge(self.root,self.chat);self.bridge.cfg.update(locked_bot_id=self.bot,test_contact={'name':'owner','user_id':self.peer});self.bridge.configure(True,self.bot,[self.peer],True)
+        self.bridge=QQBridge(self.root,self.chat);self.bridge.cfg.update(locked_bot_id=self.bot,test_contact={'name':'long','user_id':self.peer});self.bridge.configure(True,self.bot,[self.peer],True)
         self.bridge.connected=True;self.bridge.login_id=self.bot;self.bridge.epoch='x';self.sent=[];self.bridge.call=lambda *a:self.sent.append(a)
         with patch('qq_chat.time.time',return_value=self.now-3600):self.mid=self.chat.memory.add(self.peer,'user','我喜欢鸣潮地图探索。')
         self.proactive=ProactiveChat(self.root,self.bridge,lambda *_:response({}),lambda:self.now)
@@ -80,6 +80,7 @@ class ServiceTests(unittest.TestCase):
         rows=[response({'action':'web','query':'鸣潮探索','reason':'读新内容'}),call('search_web',{'query':'鸣潮探索'}),call('read_page',{'url':'https://example.com/a'}),call('finish_activity',{'findings':[{'summary':'地图探索讨论','url':'https://example.com/a','quote':'这是实际读取的网页正文证据'}]})]
         return lambda *args:rows.pop(0)
     def wire(self):
+        self.service.configure({'autonomy':True})
         self.service.client=self.web_model();self.service.search=lambda q:{'results':[{'url':'https://example.com/a'}]}
         self.service.reader=lambda url:{'ok':True,'text':'这是实际读取的网页正文证据，后面还有正文。','provider':'test-mcp'}
     def test_autonomous_plan_execution_records_source_never_sends(self):
@@ -107,10 +108,14 @@ class ServiceTests(unittest.TestCase):
         with self.assertRaises(ValueError):self.service.learning_once()
         self.assertEqual(self.service.memory.cursor(self.peer,'learning'),0)
     def test_wait_and_daily_budget_survive_restart(self):
+        self.service.configure({'autonomy':True})
         self.service.client=lambda *_:response({'action':'wait','query':'','reason':'无事'})
         self.service.activity_once();self.service.activity_once()
         with self.assertRaises(ValueError):self.service.activity_once()
         self.assertFalse(self.sent)
+    def test_new_install_requires_opt_in_before_autonomous_browsing(self):
+        self.assertFalse(self.service.config()['autonomy'])
+        with self.assertRaises(ValueError):self.service.activity_once()
     def test_config_disable_cancels_before_next_tool(self):
         self.wire();original=self.service.client
         def client(*args):
@@ -147,8 +152,8 @@ class RhythmTests(unittest.TestCase):
         self.assertIn('没有FPS游戏操作',guidance('你真会用模拟器陪我打瓦吗？',[])['content'])
     def test_preview_reads_memories_without_writing_a_chat_turn(self):
         with tempfile.TemporaryDirectory() as tmp:
-            chat=QQConversation(Path(tmp),client=lambda *_:({'content':'接着聊。'},{}));chat.memory.add('owner','user','我喜欢鸣潮地图探索。')
-            self.assertEqual(chat.prepare('owner','之前的地图',remember=False)['reply'],'接着聊。')
+            chat=QQConversation(Path(tmp),client=lambda *_:({'content':'接着聊。'},{}));chat.memory.add('long','user','我喜欢鸣潮地图探索。')
+            self.assertEqual(chat.prepare('long','之前的地图',remember=False)['reply'],'接着聊。')
             with chat.memory.db() as db:self.assertEqual(db.execute('SELECT count(*) FROM messages').fetchone()[0],1)
 
 if __name__=='__main__':unittest.main()

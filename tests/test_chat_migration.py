@@ -14,7 +14,7 @@ class ConsentTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name);self.memory=ChatMemory(self.root/'data/qq');self.now=time.time();self.store=ChatPermissions(self.root,lambda:self.now)
         self.peer='87654321';self.bot='12345678';self.source=self.context('100');self.memory.add(self.peer,'user','去小黑盒看看鸣潮')
-        (self.root/'qq.local.json').write_text(json.dumps({'test_contact':{'name':'owner','user_id':self.peer}}))
+        (self.root/'qq.local.json').write_text(json.dumps({'test_contact':{'name':'long','user_id':self.peer}}))
     def tearDown(self):self.tmp.cleanup()
     def context(self,mid,peer=None,bot=None):
         peer=peer or self.peer;bot=bot or self.bot;self.memory.claim(bot,mid,peer);return {'bot':bot,'mid':mid,'deliver':True}
@@ -79,7 +79,7 @@ class BatchTests(unittest.TestCase):
 class AccountTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name);self.chat=QQConversation(self.root,client=lambda *_:({'content':'x'},{}));self.chat.persona.save(self.chat.persona.load())
-        self.bridge=QQBridge(self.root,self.chat);self.bridge.cfg.update(locked_bot_id='12345678',test_contact={'name':'owner','user_id':'87654321'})
+        self.bridge=QQBridge(self.root,self.chat);self.bridge.cfg.update(locked_bot_id='12345678',test_contact={'name':'long','user_id':'87654321'})
         self.bridge.configure(False,'12345678',['87654321'],True);self.bridge.connected=True;self.bridge.login_id='12345678'
         self.nc=self.root/'napcat';(self.nc/'config').mkdir(parents=True)
         (self.nc/'config/onebot11_12345678.json').write_text(json.dumps({'network':{'websocketServers':[{'host':'127.0.0.1','port':3001,'token':'secret'}]}}),encoding='utf-8')
@@ -110,7 +110,7 @@ class AccountTests(unittest.TestCase):
             if authorization!='Bearer owner':raise HTTPException(401)
         register_account_switch(app,root=self.root,authorize=auth,bridge=self.bridge,proactive=None);client=TestClient(app)
         for method,path in [('get','/state'),('post','/begin'),('post','/bind'),('post','/finish')]:self.assertEqual(getattr(client,method)('/qq/switch'+path).status_code,401)
-        self.assertEqual(client.post('/qq/switch/bind',headers={'Authorization':'Bearer owner'},json={'bot_id':'owner'}).status_code,422)
+        self.assertEqual(client.post('/qq/switch/bind',headers={'Authorization':'Bearer owner'},json={'bot_id':'long'}).status_code,422)
 
 class QuotaIntegrationTests(unittest.TestCase):
     def test_confirmation_cannot_bypass_resource_guard_and_launches_only_once(self):
@@ -118,7 +118,7 @@ class QuotaIntegrationTests(unittest.TestCase):
         from qq_tasks import QQTasks
         with tempfile.TemporaryDirectory() as td:
             root=Path(td);chat=QQConversation(root,client=lambda *_:({'content':'好'},{}));bridge=QQBridge(root,chat);peer='87654321';bot='12345678'
-            bridge.cfg.update(locked_bot_id=bot,test_contact={'name':'owner','user_id':peer});bridge.configure(True,bot,[peer],True);bridge.connected=True;bridge.login_id=bot;bridge.epoch='one'
+            bridge.cfg.update(locked_bot_id=bot,test_contact={'name':'long','user_id':peer});bridge.configure(True,bot,[peer],True);bridge.connected=True;bridge.login_id=bot;bridge.epoch='one'
             mobile=FakeMobile();room={'ram_free_mib':16000,'gpu_free_mib':14000,'gpu_util_percent':0,'cpu_percent':0};tasks=QQTasks(root,bridge,mobile,resources=lambda:dict(room))
             try:
                 with tasks.db() as db:

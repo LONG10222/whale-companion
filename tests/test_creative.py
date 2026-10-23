@@ -20,7 +20,7 @@ class FakeWorkbench:
 class CreativeTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name);self.chat=QQConversation(self.root,client=lambda *_:({'content':'好'},{}));self.bridge=QQBridge(self.root,self.chat)
-        self.peer='87654321';self.bot='12345678';self.bridge.cfg.update(locked_bot_id=self.bot,test_contact={'name':'owner','user_id':self.peer});self.bridge.configure(True,self.bot,[self.peer],True)
+        self.peer='87654321';self.bot='12345678';self.bridge.cfg.update(locked_bot_id=self.bot,test_contact={'name':'long','user_id':self.peer});self.bridge.configure(True,self.bot,[self.peer],True)
         self.bridge.connected=True;self.bridge.login_id=self.bot;self.bridge.epoch='one';self.out=[];self.bridge.call=lambda *a,**kw:self.out.append((a,kw)) or {'message_id':42}
         self.worker=FakeWorkbench(self.root);self.resources=lambda:{'ram_free_mib':16000,'gpu_free_mib':13000,'gpu_util_percent':0,'cpu_percent':0}
         self.service=CreativeJobs(self.root,self.bridge,resources=self.resources,workbench=self.worker)

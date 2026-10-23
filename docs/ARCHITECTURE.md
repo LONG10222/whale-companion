@@ -36,9 +36,9 @@ The model proposes an action; the local service validates the actual sender, cur
 | Life memory | Read activities and explicit facts | Completed events only; no invented offline life |
 | Contacts | Stable QQ number, names, manual Plus | Role derives from operator configuration, never nickname |
 
-This is retrieval and prompting, not weight training. Local learning helpers may prepare candidates; they do not modify the hosted model. Group context and private memory must remain separate when group routing is eventually implemented.
+This is retrieval and prompting, not weight training. Local learning helpers may prepare candidates; they do not modify the hosted model. Enabled group routes scope events by bot, group and sender; private memory must stay out of public replies.
 
-这是检索、摘要与提示词组合，不是云端权重训练。本地学习助手只整理候选。未来接群时必须增加“机器人＋群＋发送者”的消息来源边界，不能把私聊记忆直接注入群回复。
+这是检索、摘要与提示词组合，不是云端权重训练。本地学习助手只整理候选。群路由按“机器人＋群＋发送者”区分消息来源，不能把私聊记忆直接注入群回复。
 
 ## Research / 查询
 
@@ -70,7 +70,7 @@ Explicit two-model drawings run sequentially in one task and reuse its scoped th
 
 ## Local UI / 本机页面
 
-The service binds to loopback. A custom-header POST establishes an HttpOnly, SameSite=Strict session only for an allowed loopback host and same origin. Cookie mutations require the custom header; the long-lived service token is not returned to JavaScript. Existing bearer-authenticated local clients continue to work.
+The service binds to loopback. A custom-header POST establishes an HttpOnly, SameSite=Strict session only for an allowed loopback host and same origin. Installer-created instances additionally require the private launch-session cookie; the public UI header alone cannot claim access. Cookie mutations require the custom header; the long-lived service token is not returned to JavaScript. Existing bearer-authenticated local clients continue to work.
 
 本机自动会话用于免去反复填写本地令牌，不是移除鉴权。错误来源、非本机地址、外部 Host、跨站简单表单都不能获得或使用这个会话。扫码后、初始化、验证码和重连状态避免自动重置二维码。登录账号仍必须符合锁定的机器人账号。
 

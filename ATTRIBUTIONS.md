@@ -10,6 +10,7 @@
 |---|---|---|---|
 | DeepSeek API | [Official docs](https://api-docs.deepseek.com/) | Conversation, vision and search boundary | Application client only |
 | NapCatQQ | [NapNeko/NapCatQQ](https://github.com/NapNeko/NapCatQQ) | Dedicated QQ / OneBot v11 transport | No binaries or login state |
+| CPython | [Python Software Foundation](https://www.python.org/downloads/release/python-31317/) | Verified portable Python for the Windows installer | Downloaded from python.org by the user's installer; not vendored |
 | python-qrcode | [lincolnloop/python-qrcode](https://github.com/lincolnloop/python-qrcode) | Encode the QR returned by QQ's required device-confirmation flow | Dependency only; no vendored implementation |
 | OpenAI Codex | [Official app-server docs](https://learn.chatgpt.com/docs/app-server) | Optional standard-speed scoped Luna work | Client wrapper only |
 | GPT-SoVITS | [RVC-Boss/GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) | Optional character-reference speech | No upstream runtime or weights |
@@ -56,3 +57,9 @@ README organization was informed by [AstrBot](https://github.com/AstrBotDevs/Ast
 Current-turn context and durable memory separation also reference the [LangChain memory documentation](https://docs.langchain.com/oss/python/langchain/short-term-memory). QQ password/CAPTCHA/device-confirmation integration follows the upstream [NapCat login API](https://github.com/NapNeko/NapCatQQ/blob/main/packages/napcat-webui-backend/src/api/QQLogin.ts) and frontend components linked in [QQ_LOGIN.md](docs/QQ_LOGIN.md). Character-reference preparation uses only permitted operator-supplied library entries and retains their original source links; it does not bundle or relicense those images.
 
 License copies in `licenses/` preserve the corresponding upstream notice; they do not change ownership or relicense omitted assets.
+
+Bilibili browsing was informed by [c1overzz/dsh-bili-scroll](https://github.com/c1overzz/dsh-bili-scroll) and the public behavior described by its author. The bundled `bili_reader` package is this project's first-party bounded reader implementation, not a copy of that project's agent workspace or login data. No Bilibili cookies, transcripts, reports or account authorization are shipped. The separate dsh-pet / desktop-pet experiment was cancelled; no pet code, animations or artwork are included.
+
+The Windows installer uses the upstream NapCat **4.18.41 Node package** and CPython **3.13.17** runtime as pinned in `configs/distribution.json`. Their exact SHA-256 values are checked before use. Downloads remain local and retain upstream notices. The small `scripts/portable_qq.cjs` adapter changes the QQ data-path export only inside its own process so it uses the installation's private directory; it does not modify a daily QQ install or redistribute an edited native binary. The complete Python wheel versions and hashes are recorded in `requirements-bootstrap.lock`.
+
+Qixuan pronunciation data is obtained by the operator from the [upstream workbook](https://github.com/yqzhishen/qixuan-diffsinger/blob/main/multilingual_usage_guidance/Pronunciation_Tables.xlsx). The application no longer ships a standalone extracted phoneme dictionary. `scripts/prepare-phone-map.py` generates a private local mapping from the operator's supplied copy; the upstream voicebank terms and complete distribution remain separate from the application's GPL license.

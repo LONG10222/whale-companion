@@ -40,6 +40,7 @@ class LoginVault:
         def change(d):
             if uin not in d['accounts'] and len(d['accounts'])>=8:raise ValueError('最多保存8个机器人账号。')
             item=d['accounts'].setdefault(uin,{});item.update(label=label[:40],blocked=False)
+            item.pop('failure_reason',None)
             if encrypted:item['protected']=encrypted
             if not remember:item.pop('protected',None)
             d['default']=uin;d['automatic']=True

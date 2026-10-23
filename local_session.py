@@ -1,6 +1,6 @@
-"""Loopback, same-origin browser sessions. Never expose the owner-lived API key."""
+"""Loopback, same-origin browser sessions. Never expose the long-lived API key."""
 from pathlib import Path
-import ipaddress,secrets,threading,time
+import ipaddress,json,secrets,threading,time
 from fastapi import HTTPException,Request
 from fastapi.responses import JSONResponse,Response
 
@@ -8,8 +8,10 @@ COOKIE='whale_local_session'
 MARKER='whale-local-ui-v1'
 
 class LocalSessions:
-    def __init__(self,api_token,port=18766,clock=time.time):
+    def __init__(self,api_token,port=18766,clock=time.time,root=None):
         self.api_token=api_token;self.clock=clock;self.lock=threading.Lock();self.sessions={}
+        self.root=Path(root) if root is not None else None
+        self.cookie=COOKIE if port==18766 else COOKIE+'_'+str(port)
         self.origins={f'http://127.0.0.1:{port}',f'http://localhost:{port}',f'http://[::1]:{port}'}
     def local(self,request):
         try:loopback=bool(request.client and ipaddress.ip_address(request.client.host).is_loopback)
@@ -18,24 +20,37 @@ class LocalSessions:
         return loopback and base in self.origins and request.headers.get('sec-fetch-site','same-origin') in {'same-origin','none'} and request.headers.get('origin',base)==base
     def create(self,request):
         if not self.local(request) or request.headers.get('x-local-client')!=MARKER:raise HTTPException(403,'请从本机管理页面连接。')
+        if self.bootstrap_required() and not self.bootstrap_valid(request):raise HTTPException(401,'请从桌面的一键启动入口打开本机页面。')
         now=self.clock();sid=secrets.token_urlsafe(36)
         with self.lock:
             self.sessions={k:v for k,v in self.sessions.items() if v>now}
             if len(self.sessions)>128:self.sessions.pop(next(iter(self.sessions)))
             self.sessions[sid]=now+12*3600
         response=JSONResponse({'connected':True,'expires_in':12*3600})
-        response.set_cookie(COOKIE,sid,max_age=12*3600,httponly=True,samesite='strict',path='/')
+        response.set_cookie(self.cookie,sid,max_age=12*3600,httponly=True,samesite='strict',path='/')
         response.headers['Cache-Control']='no-store';return response
     def authorize(self,request,authorization=''):
         if secrets.compare_digest(authorization,'Bearer '+self.api_token):return
-        sid=request.cookies.get(COOKIE,'')
-        with self.lock:valid=bool(self.sessions.get(sid,0)>self.clock())
         safe=request.method in {'GET','HEAD'} or request.headers.get('x-local-client')==MARKER
+        if self.bootstrap_required():
+            if safe and self.local(request) and self.bootstrap_valid(request):return
+            raise HTTPException(401,'请从桌面的一键启动入口重新连接。')
+        sid=request.cookies.get(self.cookie,'')
+        with self.lock:valid=bool(self.sessions.get(sid,0)>self.clock())
         if valid and safe and self.local(request):return
         raise HTTPException(401,'本机连接已过期，刷新页面即可自动重连。')
+    def bootstrap_required(self):
+        return bool(self.root and (self.root/'data/setup/installation.local.json').is_file())
+    def bootstrap_valid(self,request):
+        try:
+            state=json.loads((self.root/'data/setup/browser-session.local.json').read_text(encoding='utf-8'))
+            expected=state.get('cookie','')
+            return bool(expected and state.get('expires',0)>self.clock() and secrets.compare_digest(
+                expected,request.cookies.get('whale_setup_session','')))
+        except (OSError,ValueError,TypeError):return False
 
 def register_local_sessions(app,root,api_token,port=18766):
-    sessions=LocalSessions(api_token,port)
+    sessions=LocalSessions(api_token,port,root=root)
     @app.post('/local/session')
     def start(request:Request):return sessions.create(request)
     @app.get('/local/session.js')

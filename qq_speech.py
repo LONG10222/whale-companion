@@ -61,10 +61,10 @@ def read_aloud(speaker,text,folder):
     return join_audio(files,folder)
 
 def read_aloud_parts(speaker,text,folder):
-    """Keep every word; split owner readings into normal-length QQ voice messages."""
+    """Keep every word; split long readings into normal-length QQ voice messages."""
     chunks(text)  # Validate the complete source before synthesizing any fragment.
     # Longer paragraphs can swallow their short opening sentence in this voice.
-    # Preserve short chat prosody; give full sentences their own contour in owner reads.
+    # Preserve short chat prosody; give full sentences their own contour in long reads.
     sentences=[text.strip()] if len(text.strip())<=60 else re.findall(r'[^。！？\n]+[。！？\n]*|[。！？\n]+',text.strip())
     parts=[part for sentence in sentences for part in chunks(sentence,60)];groups=[];current=[];seconds=0
     for part in parts:

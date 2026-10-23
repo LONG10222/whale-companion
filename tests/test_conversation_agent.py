@@ -21,7 +21,7 @@ def call(name,args,reasoning=None):
 class ConversationAgentTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name);self.peer='87654321'
-        (self.root/'qq.local.json').write_text(json.dumps({'test_contact':{'name':'owner','user_id':self.peer}}))
+        (self.root/'qq.local.json').write_text(json.dumps({'test_contact':{'name':'long','user_id':self.peer}}))
     def tearDown(self):self.tmp.cleanup()
     def conversation(self,answers):
         rows=iter(answers);self.requests=[]
@@ -76,7 +76,7 @@ class ConversationAgentTests(unittest.TestCase):
             [('user','随便聊聊'),('assistant','你可以去小黑盒看看')]]:
             self.assertFalse(phone_intent(resolve_followup('继续',history)))
     def test_sensitive_query_is_not_sent_to_search_provider(self):
-        chat=self.conversation([call('search_web',{'query':('sk-'+'a'*24)}),({'content':'搜索词不合适。'}, {})])
+        chat=self.conversation([call('search_web',{'query':('' + ('sk-' + 'synthetic-secret-fixture-only') + '')}),({'content':'搜索词不合适。'}, {})])
         with patch('agent_web.web_search') as search:r=chat.prepare(self.peer,'查一下这个内容',remember=False);search.assert_not_called()
         self.assertIn('私密',r['tools'][0]['result']['error'])
     def test_casual_turn_uses_fast_mode_and_task_uses_thinking(self):
@@ -93,7 +93,7 @@ class ConversationAgentTests(unittest.TestCase):
         self.assertFalse(target['text_only']);self.assertIn('不配对',target['question'])
 
 class JargonTests(unittest.TestCase):
-    def setUp(self):self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name);self.store=JargonStore(self.root);self.peer='owner'
+    def setUp(self):self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name);self.store=JargonStore(self.root);self.peer='long'
     def tearDown(self):self.tmp.cleanup()
     def test_builtin_needs_both_term_and_game_context(self):
         self.assertTrue(self.store.select(self.peer,'鸣潮今天又坐牢了'))
@@ -131,7 +131,7 @@ class BackgroundTaskTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name);self.peer='87654321';self.bot='12345678'
         self.chat=SimpleNamespace(memory=ChatMemory(self.root/'data/qq'),task_reply=lambda *a:'找到两条内容。\n来源：小黑盒《实际标题》')
-        self.bridge=QQBridge(self.root,self.chat);self.bridge.cfg.update(locked_bot_id=self.bot,test_contact={'name':'owner','user_id':self.peer})
+        self.bridge=QQBridge(self.root,self.chat);self.bridge.cfg.update(locked_bot_id=self.bot,test_contact={'name':'long','user_id':self.peer})
         self.bridge.configure(True,self.bot,[self.peer],True);self.bridge.connected=True;self.bridge.login_id=self.bot;self.bridge.epoch='one'
         self.mobile=FakeMobile();self.out=[];self.bridge.call=lambda *a,**kw:self.out.append((a,kw)) or {'message_id':42}
         resources=lambda:{'ram_free_mib':16000,'gpu_free_mib':14000,'gpu_util_percent':0,'cpu_percent':0}

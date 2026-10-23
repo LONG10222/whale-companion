@@ -36,7 +36,7 @@ def register_qq_agent_routes(app,*,authorize,root,bridge,mobile):
     @router.get('/state')
     def state():
         who,_=call(service.scope)
-        return {'contact':'owner','settings':bridge.chat.agent_settings(),'jobs':service.recent(who),'jargon':bridge.chat.jargon.list(who),
+        return {'contact':'long','settings':bridge.chat.agent_settings(),'jobs':service.recent(who),'jargon':bridge.chat.jargon.list(who),
             'planning_backend':'DeepSeek Flash / 按任务启用思考','local_model_loaded_for_chat':False,
             'resources_last_checked':service.cached_resource,'only_read_phone':True,'automatic_proactive_send':False,
             'tools':['表情包','语音','历史记忆查询','公开网页搜索与读取','小黑盒后台阅读']}

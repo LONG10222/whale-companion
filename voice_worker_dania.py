@@ -122,7 +122,7 @@ def main():
                 audio,trimmed_silence=limit_long_digital_pauses(audio,sr)
                 duration=len(audio)/sr
                 if not 0<duration<=config['max_audio_seconds'] or not np.isfinite(audio).all():
-                    raise ValueError('Audio is invalid or too owner')
+                    raise ValueError('Audio is invalid or too long')
                 if np.sqrt(np.mean(audio*audio))<0.0001:raise ValueError('Audio is silent')
                 sf.write(req['path'],audio,sr,subtype='PCM_16')
                 metrics={'ok':True,'seconds':round(duration,3),'sample_rate':sr,

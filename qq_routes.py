@@ -12,6 +12,11 @@ class QQConfig(BaseModel):
     voice_enabled:bool=True
 class Preview(BaseModel):
     text:str=Field(min_length=1,max_length=1200)
+class GroupConfig(BaseModel):
+    group_id:str=Field(pattern=r'^[1-9]\d{4,11}$')
+    enabled:bool
+    valid_seconds:int=Field(default=0,ge=0,le=86400)
+class GroupProbe(BaseModel):group_id:str=Field(pattern=r'^[1-9]\d{4,11}$')
 class AccountCredentials(BaseModel):
     uin:str=Field(pattern=r'^[1-9]\d{4,11}$')
     password:SecretStr=SecretStr('')
@@ -20,6 +25,7 @@ class AccountCredentials(BaseModel):
 class CaptchaAnswer(BaseModel):
     ticket:SecretStr
     randstr:SecretStr
+    challenge_id:str=Field(pattern=r'^[a-f0-9]{16}$')
 
 def register_qq_routes(app,*,authorize,root):
     root=Path(root);bridge=QQBridge(root);preview_gate=threading.Lock()
@@ -30,13 +36,18 @@ def register_qq_routes(app,*,authorize,root):
     def account_call(fn):
         try:return fn()
         except ValueError as exc:raise HTTPException(409,str(exc)) from None
-        except Exception:raise HTTPException(503,'QQ登录服务暂未就绪，请稍后重试。') from None
+        except Exception as exc:
+            from tool_failures import failure_info
+            from usage_ledger import Ledger
+            failure=failure_info(exc);bridge.event('local_control_error',failure['error_code']+'：'+failure['error'])
+            Ledger(root).record('local_control_failed',state='failed',details={'tool':'local_control','error_code':failure['error_code'],'failure_reason':failure['error']})
+            raise HTTPException(503,'本次QQ操作未完成：'+failure['error']) from None
     @app.get('/qq/login/accounts',dependencies=[Depends(authorize)])
     def accounts_state():return account_call(accounts.status)
     @app.post('/qq/login/account',dependencies=[Depends(authorize)])
     def account_login(body:AccountCredentials):return account_call(lambda:accounts.configure(body.uin,body.password.get_secret_value(),body.label,body.remember))
     @app.post('/qq/login/captcha',dependencies=[Depends(authorize)])
-    def captcha_login(body:CaptchaAnswer):return account_call(lambda:accounts.captcha(body.ticket.get_secret_value(),body.randstr.get_secret_value()))
+    def captcha_login(body:CaptchaAnswer):return account_call(lambda:accounts.captcha(body.ticket.get_secret_value(),body.randstr.get_secret_value(),body.challenge_id))
     @app.get('/qq/login/device-qr',dependencies=[Depends(authorize)])
     def device_qr():
         from fastapi.responses import Response
@@ -52,6 +63,31 @@ def register_qq_routes(app,*,authorize,root):
     def page():return (root/'qq.html').read_text(encoding='utf-8')
     @app.get('/qq/status',dependencies=[Depends(authorize)])
     def status():return bridge.snapshot()
+    @app.get('/qq/runtime/status',dependencies=[Depends(authorize)])
+    def runtime_status():
+        from runtime_supervisor import read_json,job_info
+        return {'supervisor':read_json(root/'logs/runtime/status.json',{'state':'not_started'}),
+                'api_process_job':job_info()}
+    @app.get('/qq/groups',response_class=HTMLResponse)
+    def groups_page():return (root/'qq_groups.html').read_text(encoding='utf-8')
+    @app.get('/qq/groups.js')
+    def groups_script():return FileResponse(root/'qq_groups.js',media_type='application/javascript')
+    @app.get('/qq/groups/state',dependencies=[Depends(authorize)])
+    def group_state():return bridge.groups.state()
+    @app.post('/qq/groups/refresh',dependencies=[Depends(authorize)])
+    def group_refresh():return account_call(bridge.groups.refresh)
+    @app.post('/qq/groups/config',dependencies=[Depends(authorize)])
+    def group_config(body:GroupConfig):
+        import time
+        return account_call(lambda:bridge.groups.configure(body.group_id,body.enabled,expires=time.time()+body.valid_seconds if body.valid_seconds else 0))
+    @app.post('/qq/groups/test',dependencies=[Depends(authorize)])
+    def group_probe(body:GroupProbe):return account_call(lambda:bridge.groups.probe(body.group_id))
+    @app.get('/qq/diagnostics',dependencies=[Depends(authorize)])
+    def diagnostics():
+        from usage_ledger import Ledger
+        import json
+        with Ledger(root).db() as db:rows=db.execute("SELECT at,state,details FROM events WHERE kind IN ('tool_used','local_control_failed') AND state='failed' ORDER BY at DESC LIMIT 30").fetchall()
+        return {'failures':[{'at':r[0],'state':r[1],**json.loads(r[2])} for r in rows],'new_records_have_failure_reasons':True}
     @app.post('/qq/config',dependencies=[Depends(authorize)])
     def config(request:QQConfig):
         peers=[p for p in re.split(r'[,，\s]+',request.peers.strip()) if p]
@@ -71,6 +107,12 @@ def register_qq_routes(app,*,authorize,root):
         return login_service.ensure(force=True)
     @app.post('/qq/login/ensure',dependencies=[Depends(authorize)])
     def ensure_login():return login_service.ensure()
+    @app.post('/qq/login/recover-transport',dependencies=[Depends(authorize)])
+    def recover_transport():return account_call(accounts.recover_transport)
+    @app.post('/qq/login/use-qr',dependencies=[Depends(authorize)])
+    def use_qr():
+        account_call(accounts.use_qr)
+        return account_call(lambda:login_service.ensure(force=True))
     @app.post('/qq/video/recheck',dependencies=[Depends(authorize)])
     def recheck_video():
         try:return bridge.recheck_video()
@@ -82,7 +124,7 @@ def register_qq_routes(app,*,authorize,root):
             result=bridge.chat.prepare('local_preview',request.text,voice_enabled=True,remember=False)
             return {'reply':result['reply'],'tools':result['tools'],'attachments':[{'kind':a['kind'],'id':a.get('id'),
                 'url':'/stickers/images/'+a['id'] if a['kind']=='image' else 'http://127.0.0.1:18765/artifacts/'+Path(a['path']).stem} for a in result['attachments']],
-                'sent_to_qq':False}
+                'sent_to_qq':False,'silent':bool(result.get('silent')),'dialogue_act':result.get('dialogue_act','reply')}
         except Exception as exc:raise HTTPException(503,str(exc)[:200]) from None
         finally:preview_gate.release()
     return bridge

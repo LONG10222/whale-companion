@@ -46,7 +46,7 @@ class QQTests(unittest.TestCase):
     def test_token_is_not_exposed_by_status(self):
         self.assertNotIn(self.bridge.cfg['onebot_token'],json.dumps(self.bridge.snapshot()))
     def test_locked_test_contact_cannot_be_expanded(self):
-        self.bridge.cfg['test_contact']={'user_id':'87654321','name':'owner'}
+        self.bridge.cfg['test_contact']={'user_id':'87654321','name':'long'}
         with self.assertRaises(ValueError):self.bridge.configure(True,'12345678',['87654321','99999999'],True)
     def test_memory_is_isolated_by_peer(self):
         self.chat.memory.add('111111','user','我喜欢红色');self.chat.memory.add('222222','user','我喜欢蓝色')
@@ -92,7 +92,7 @@ class QQTests(unittest.TestCase):
     def test_video_recheck_is_bound_to_long_and_deduplicated(self):
         class Videos:
             def analyze(self,*args):return {'summary':'测试视频'}
-        self.chat.videos=Videos();self.bridge.cfg['test_contact']={'name':'owner','user_id':'87654321'}
+        self.chat.videos=Videos();self.bridge.cfg['test_contact']={'name':'long','user_id':'87654321'}
         original_call=self.bridge.call
         def call(action,params=None,timeout=20):
             if action=='get_friend_msg_history':

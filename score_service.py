@@ -31,10 +31,12 @@ class ScoreService:
         if self.process is not None and self.process.poll() is None:self.process.terminate()
         return {'stopping':self.busy}
     def worker(self,python,script,config,job,label):
+        from audio_budget import apply
+        config=apply(self.root,script,config)
         self.phase=label
         with (job/(label+'.log')).open('w',encoding='utf-8') as log:
             self.process=subprocess.Popen([python,'-u',str(self.root/script),json.dumps(config)],stdout=subprocess.PIPE,
-                stderr=log,text=True,encoding='utf-8',creationflags=subprocess.CREATE_NO_WINDOW)
+                stderr=log,text=True,encoding='utf-8',creationflags=subprocess.CREATE_NO_WINDOW|getattr(subprocess,'BELOW_NORMAL_PRIORITY_CLASS',0))
             if self.cancelled:self.process.terminate()
             try:stdout,_=self.process.communicate(timeout=600)
             except subprocess.TimeoutExpired:

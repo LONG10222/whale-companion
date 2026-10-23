@@ -1,0 +1,62 @@
+name: Windows release
+on:
+  push:
+    branches: ['main']
+    tags: ['v*']
+    paths: ['configs/release.json', '.github/workflows/release.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Validate tag
+        shell: python
+        run: |
+          import json, os, pathlib, re
+          version = json.loads(pathlib.Path('configs/release.json').read_text(encoding='utf-8'))['version']
+          if not re.fullmatch(r'\d+\.\d+\.\d+', version):
+              raise SystemExit('Invalid version')
+          if os.environ['GITHUB_REF_TYPE'] == 'tag' and os.environ['GITHUB_REF_NAME'] != 'v' + version:
+              raise SystemExit('Tag must match configs/release.json')
+          if not pathlib.Path('docs/releases/v' + version + '.md').is_file():
+              raise SystemExit('Reviewed release notes are required')
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as env:
+              env.write('RELEASE_TAG=v' + version + '\n')
+      - name: Install verified dependencies
+        run: python -m pip install --only-binary=:all: --require-hashes --index-url https://pypi.org/simple -r requirements-bootstrap.lock
+      - name: Regression and privacy checks
+        run: |
+          python -m unittest discover -s tests -q
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/scan_public.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          .\scripts\bootstrap.ps1 -CheckOnly
+      - name: Build source-only installer
+        run: python scripts/build-release.py --output "$env:RUNNER_TEMP\whale-release"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-source-installer
+          path: ${{ runner.temp }}/whale-release/*
+          if-no-files-found: error
+      - name: Publish verified release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $taskTag = $env:RELEASE_TAG
+          $taskArchive = Join-Path $env:RUNNER_TEMP "whale-release\WhaleCompanion-$taskTag-windows-x64.zip"
+          $taskSums = Join-Path $env:RUNNER_TEMP 'whale-release\SHA256SUMS'
+          gh release create $taskTag $taskArchive $taskSums --target $env:GITHUB_SHA --title "Whale Companion $taskTag" --notes-file "docs/releases/$taskTag.md"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }

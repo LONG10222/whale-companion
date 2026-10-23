@@ -3,28 +3,28 @@
 <h1>本地语音测试台</h1><p><a href="http://127.0.0.1:18766/stickers">本地表情包库 →</a></p><p class="note">仅在这台电脑合成和试听。QQ、微信尚未连接。</p><p><a href="http://127.0.0.1:18766/mobile">打开手机助手：小黑盒阅读与本地草稿 →</a></p>
 <section id="newSinging"><strong>达妮娅中文参考声线 · AI合成清唱</strong>
 <p class="note">沿用已认可的演唱方式，保持原旋律、节奏与时长，换成达妮娅中文参考声线。换声后重新核对唱词、异常中断与旋律保持情况。</p>
-<p>《春晓》· 公版诗词、原创旋律，约22秒<audio controls preload="metadata" src="/artifacts/8731c1cfbd654e1ea1c31c9db2e3e621"></audio></p>
+<p>《春晓》· 公版诗词、原创旋律，约22秒<span class="note">请在本机生成后试听。</span></p>
 <p class="note">AI合成：SoulX-Singer 演唱，Seed-VC 换声；达妮娅中文参考音频来自 villia 发布的角色模型。</p>
 <p class="note">演唱声音已默认选择达妮娅。新声线的相似程度以试听为准。</p></section><section><details><summary>基础演唱对照</summary><strong>新版清唱候选 · 两种方式对照</strong>
 <p class="note">下面两段《等花开》使用同一份原创歌词、音符和时长。已核对唱词与明显中断，情绪和真人感尚待试听验收。</p>
 <p>晚风轻轻吹过窗台，陪你慢慢等花开。</p>
 <p>SoulX-Singer · 官方示例音色 · AI合成，约11秒
-<audio controls preload="metadata" src="/artifacts/72f67b4395904c6bbee16e1d16800aa3"></audio></p>
+<span class="note">请在本机生成后试听。</span></p>
 <p>绮萱 · DiffSinger · AI合成，约11秒
-<audio controls preload="metadata" src="/artifacts/a5b6d8112d694c07affdcb81427ec103"></audio></p>
+<span class="note">请在本机生成后试听。</span></p>
 <p class="note">绮萱声库制作：YQ之神；数据提供：颜绮萱。SoulX参考音色来自 Soul-AILab 官方推理示例。</p>
 <details><summary>再听一段《春晓》· 公版古诗、原创旋律</summary>
-<p>SoulX-Singer · AI合成，约22秒<audio controls preload="none" src="/artifacts/c2ac5232981b4179895f15fd23e75aa5"></audio></p>
-<p>绮萱 · DiffSinger · AI合成，约22秒<audio controls preload="none" src="/artifacts/2fb55b93ef8f46688019f441e0d6c2be"></audio></p>
+<p>SoulX-Singer · AI合成，约22秒<span class="note">请在本机生成后试听。</span></p>
+<p>绮萱 · DiffSinger · AI合成，约22秒<span class="note">请在本机生成后试听。</span></p>
 </details></details></section>
-<section><strong>达妮娅中文 · 正常口语节奏试听</strong><p class="note">放缓吐字，保留正常断句，只对过长的完全无声间隔做温和限制。三段共用作者提供的一段参考音频，尚未单独控制情绪。</p><p>日常招呼<audio controls preload="none" src="/samples/dania-daily.wav?v=pace5"></audio></p><p>轻松打趣<audio controls preload="none" src="/samples/dania-playful.wav?v=pace5"></audio></p><p>关心安慰<audio controls preload="none" src="/samples/dania-caring.wav?v=pace5"></audio></p></section>
+<section><strong>达妮娅中文 · 正常口语节奏试听</strong><p class="note">放缓吐字，保留正常断句，只对过长的完全无声间隔做温和限制。三段共用作者提供的一段参考音频，尚未单独控制情绪。</p><p>日常招呼<span class="note">请在本机生成后试听。</span></p><p>轻松打趣<span class="note">请在本机生成后试听。</span></p><p>关心安慰<span class="note">请在本机生成后试听。</span></p></section>
 <section><label>本地访问令牌<input id="token" type="password" placeholder="填写 settings.local.json 中的 api_token；只保存在本页内存"></label>
 <label>本地引擎<select id="engine"><option value="dania-gptsovits">达妮娅中文 · GPT-SoVITS GPU</option><option value="kokoro-cpu">Kokoro CPU · 轻量备选</option><option value="qwen3-tts-local">Qwen3 GPU · 音色对比</option></select></label>
 <label>声音<select id="voice"><option value="dania">达妮娅 · 作者参考音频</option></select></label>
 <label>要说的话<textarea id="text" rows="3" maxlength="120">今天过得怎么样？忙完了就歇一会儿，想聊什么都可以。</textarea></label>
 <button id="generate">生成并试听</button><button id="unload">释放语音模型显存</button><p id="message" role="status"></p><audio controls id="audio" hidden></audio></section>
 
-<section><details><summary>旧方案 · 已判为不合格</summary><strong>上一版未达标 · 正在更换合成方式</strong><p class="note">旧版只有哼唱，已判定不合格。用户审核仍认为情感、歌词与字音不合格。本版本保留作问题对照，不能作为已达标的声音。正在审核其他合成方式。</p><p>原始演唱（含伴奏）<audio controls preload="none" src="/artifacts/bb5ee4078e364f7688b81684170f39b6"></audio></p><p>达妮娅人声版<audio controls preload="none" src="/artifacts/9f13d0284b2f4e56b08d7ee6c2edcff2"></audio></p></details></section>
+<section><details><summary>旧方案 · 已判为不合格</summary><strong>上一版未达标 · 正在更换合成方式</strong><p class="note">旧版只有哼唱，已判定不合格。用户审核仍认为情感、歌词与字音不合格。本版本保留作问题对照，不能作为已达标的声音。正在审核其他合成方式。</p><p>原始演唱（含伴奏）<span class="note">请在本机生成后试听。</span></p><p>达妮娅人声版<span class="note">请在本机生成后试听。</span></p></details></section>
 <section><strong>让 DeepSeek 自己调用工具</strong>
 <p class="note">输入需求后，助手可以搜索资料、按歌词与音符生成清唱并返回音频。默认使用达妮娅中文参考声线，也保留基础演唱对照。声音由 AI 合成。使用上方的本地访问令牌；QQ、微信仍未连接。</p>
 <label>DeepSeek API Key<input id="agentKey" type="password" autocomplete="off" placeholder="仅在本地填写，保存后不回显"></label>

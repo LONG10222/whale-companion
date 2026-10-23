@@ -14,7 +14,7 @@ def main():
                 import sherpa_onnx
                 folder=Path(cfg['asr_model'])
                 recognizer=sherpa_onnx.OfflineRecognizer.from_sense_voice(model=str(folder/'model.int8.onnx'),
-                    tokens=str(folder/'tokens.txt'),num_threads=6,use_itn=True,language=cfg.get('language','zh'),provider='cpu')
+                    tokens=str(folder/'tokens.txt'),num_threads=max(1,min(8,int(cfg.get('cpu_threads',6)))),use_itn=True,language=cfg.get('language','zh'),provider='cpu')
                 data,sr=sf.read(cfg['input_audio'],dtype='float32',always_2d=True)
                 stream=recognizer.create_stream();stream.accept_waveform(sr,data.mean(axis=1))
                 recognizer.decode_stream(stream);transcript=stream.result.text
@@ -22,7 +22,7 @@ def main():
             else:
                 import torch,librosa
                 from transformers import WhisperProcessor,WhisperForConditionalGeneration
-                torch.set_num_threads(6);torch.cuda.set_per_process_memory_fraction(.25,0)
+                torch.set_num_threads(max(1,min(8,int(cfg.get('cpu_threads',6)))));torch.cuda.set_per_process_memory_fraction(.25,0)
                 processor=WhisperProcessor.from_pretrained(cfg['asr_model'],local_files_only=True)
                 model=WhisperForConditionalGeneration.from_pretrained(cfg['asr_model'],local_files_only=True,
                     torch_dtype=torch.float16).eval().to('cuda')

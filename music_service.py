@@ -48,7 +48,7 @@ class MusicService:
             'asr_backend':settings.get('asr_backend','whisper')}
         with (Path(job_dir)/'lyrics-check.log').open('w',encoding='utf-8') as log:
             self.process=subprocess.Popen([settings['asr_python'],'-u',str(self.root/'lyric_check_worker.py'),json.dumps(config)],
-                stdout=subprocess.PIPE,stderr=log,text=True,encoding='utf-8',creationflags=subprocess.CREATE_NO_WINDOW)
+                stdout=subprocess.PIPE,stderr=log,text=True,encoding='utf-8',creationflags=subprocess.CREATE_NO_WINDOW|getattr(subprocess,'BELOW_NORMAL_PRIORITY_CLASS',0))
             if self.cancel_requested:self.process.terminate()
             try:stdout,_=self.process.communicate(timeout=180)
             except subprocess.TimeoutExpired:
@@ -82,8 +82,10 @@ class MusicService:
                     if kind=='voice':cfg.update(semitones=payload['semitones'],diffusion_steps=40)
                 with (Path(job_dir)/'worker.log').open('w',encoding='utf-8') as log:
                     worker={'music':'music_worker.py','voice':'singing_worker.py','separate':'separate_worker.py'}[kind]
+                    from audio_budget import apply
+                    cfg=apply(self.root,worker,cfg)
                     self.process=subprocess.Popen([cfg['python'],'-u',str(self.root/worker),json.dumps(cfg)],
-                        stdout=subprocess.PIPE,stderr=log,text=True,encoding='utf-8',creationflags=subprocess.CREATE_NO_WINDOW)
+                        stdout=subprocess.PIPE,stderr=log,text=True,encoding='utf-8',creationflags=subprocess.CREATE_NO_WINDOW|getattr(subprocess,'BELOW_NORMAL_PRIORITY_CLASS',0))
                     try:
                         if self.cancel_requested:self.process.terminate()
                         stdout,_=self.process.communicate(timeout=900)

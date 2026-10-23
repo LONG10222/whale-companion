@@ -30,7 +30,7 @@ def register_music_routes(app,*,authorize,lock,unload,root,synthesize):
     def status():return service.status()
     @app.post('/music/cancel',dependencies=[Depends(authorize)])
     def cancel():return service.cancel()
-    @app.get('/artifacts/{artifact_id}')
+    @app.get('/artifacts/{artifact_id}',dependencies=[Depends(authorize)])
     def artifact(artifact_id:str):
         try:path=service.path(artifact_id)
         except ValueError as exc:raise HTTPException(404,str(exc))

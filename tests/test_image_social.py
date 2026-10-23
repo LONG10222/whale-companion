@@ -74,10 +74,11 @@ class ImageSocialTests(unittest.TestCase):
         self.assertIn('没有要求搜索',r['tools'][0]['result']['error'])
     def test_social_reply_receives_contextual_utterance_without_literal_caption(self):
         c=self.chat([{'content':'好，不念了。'}]);base=c.images.describe([self.image()])[0]
-        c.images.describe=lambda _:[base|{'conversation_turn':{'meaning':'对前面的长篇解释表示无语，希望简短聊天','response_act':'end_topic','certainty':'medium','reply_hint':'好，不念了。'}}]
+        c.images.describe=lambda _:[base|{'conversation_turn':{'meaning':'拿前一句互相打趣，不是询问表情释义','response_act':'tease','certainty':'medium','reply_hint':'要不要继续解释这个梗？'}}]
         c.prepare('peer','',images=[self.image()],remember=False)
         request=self.requests[0];user=next(m for m in reversed(request) if m['role']=='user')
-        self.assertIsInstance(user['content'],str);self.assertTrue(any('希望简短聊天' in m['content'] for m in request if m['role']=='system'))
+        self.assertIsInstance(user['content'],list);self.assertTrue(any('互相打趣' in m['content'] for m in request if m['role']=='system'))
+        self.assertFalse(any('要不要继续解释这个梗' in str(m['content']) for m in request))
         self.assertFalse(any('两只爪子' in str(m['content']) for m in request))
     def test_approved_jargon_can_be_recalled_from_image_text(self):
         c=self.chat([{'content':'GG，懂了。'}]);item={'term':'GG','meaning':'本人的聊天里用来打趣说寄了','contexts':['表情'],
@@ -85,5 +86,16 @@ class ImageSocialTests(unittest.TestCase):
         c.jargon.add_candidate('peer',item,{1:item['quote']});entry=c.jargon.list('peer')['entries'][0]
         c.jargon.change('peer',entry['id'],'approved');c.prepare('peer','',images=[self.image()],remember=False)
         self.assertTrue(any('用来打趣说寄了' in m['content'] for m in self.requests[0] if m['role']=='system'))
+    def test_outgoing_sticker_cannot_replace_the_users_actual_story(self):
+        c=self.chat([{'tool_calls':[{'id':'s','function':{'name':'use_sticker','arguments':'{"emotion":"无语","query":"抽卡","theme":"鸣潮","character":""}'}}]},{'content':'这池子是真的难出。'}])
+        c.prepare_stickers=lambda *a,**kw:({'prepared':True,'meaning':['角色抽到了，没抽到专武']},[{'kind':'image','id':'a'*24,'path':'not-delivered.png'}])
+        c.memory.add('peer','user','没抽到想要的角色。')
+        result=c.prepare('peer','又歪了。',remember=False)
+        self.assertIn('不是用户新说的话',str(self.requests[-1]));self.assertIn('没抽到想要的角色',str(self.requests[-1]));self.assertIn('难出',result['reply'])
+    def test_literal_prepared_attachment_notice_is_removed_from_delivered_text(self):
+        from chat_style import strip_attachment_notice
+        self.assertEqual(strip_attachment_notice('（表情已准备好）\n\n这池子真难出。'),'这池子真难出。')
+        for text in ['你刚才问图片准备好了吗？','这张表情确实很像我。','表情包的来源我还没有核实。']:
+            self.assertEqual(strip_attachment_notice(text),text)
 
 if __name__=='__main__':unittest.main()

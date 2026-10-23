@@ -164,6 +164,21 @@ class LearningStore:
             if not row or row['status']=='revoked':raise ValueError('找不到有效条目。')
             self.action(db,peer,'更改学习条目状态',[{'table':'items','id':item_id,'before':dict(row)}])
             db.execute('UPDATE items SET status=? WHERE id=?',(status,item_id))
+    def observe_style(self,peer,message_id,text,card):
+        """Store narrow, explicit style feedback as reversible, peer-only preferences."""
+        text=safe_question(text)
+        if not text or re.search(r'转发|引用|别人说|他说|她说|[“「]|权限|管理员|密码|密钥|文件|删除|API|Codex',text,re.I):return []
+        rules=[
+            (r'你.{0,8}(?:好呆|太呆|像机器人|太客服|人机感)|(?:回复|说话).{0,8}(?:机器人|客服|机械|生硬)',
+             '自然回应本轮具体内容，少用客服套话；玩梗不讲解出处，换话题后不复读上一个梗。'),
+            (r'(?:别|不要|不用).{0,5}(?:解释|解析|解读).{0,6}(?:表情|梗)',
+             '收到表情或接梗时直接参与交流，只有明确问意思才解释。'),
+            (r'(?:别|不要|不用).{0,5}(?:老|总|每次|一直|反复).{0,5}(?:问|反问|追问)',
+             '少用习惯性追问；没有确实需要确认的信息时，直接接话。')]
+        ids=[]
+        for pattern,hint in rules:
+            if re.search(pattern,text):ids.append(self.add_item(peer,card,'preference',content=hint,source_id=message_id,evidence=text))
+        return ids
     def edit_item(self,peer,item_id,card,content,question,answer,scene,keywords,expires):
         if scene not in SCENES:raise ValueError('场景不正确。')
         with self.db() as db:

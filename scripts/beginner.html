@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>鲸娅 · 初次设置</title><link rel="stylesheet" href="/setup.css"><script src="/setup.js" defer></script>
+</head>
+<body>
+  <main>
+    <header><span class="badge">Whale Companion · 本机设置</span><h1>让鲸娅住进你的 QQ</h1><p>环境已经由启动器准备。接下来用你自己的 Key 和机器人小号连接。</p></header>
+    <div id="connection" class="notice" role="status">正在连接本机程序…</div>
+    <div id="test-note" class="notice" hidden>这是安装器验收副本；现有鲸娅占用了 QQ 端口，原服务保持运行。</div>
+    <section class="card" id="key-section">
+      <div class="step">1</div><div class="content"><h2>填写 DeepSeek API Key</h2><p>只保存在这台电脑。聊天费用由你的 DeepSeek 账号承担。</p>
+        <form id="key-form"><label for="api-key">DeepSeek API Key</label><div class="input-row"><input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…" minlength="24" maxlength="200" required><button id="toggle-key" class="quiet" type="button" aria-pressed="false">显示</button></div><button id="save-key" type="submit">验证并保存</button></form>
+        <p id="key-result" class="hint" role="status"></p>
+      </div>
+    </section>
+    <section class="card">
+      <div class="step">2</div><div class="content"><h2>登录专用机器人 QQ</h2><p>请用小号扫码，在手机上确认。它有独立的数据目录，不会替换你的日常 QQ。</p>
+        <div class="qr-box"><img id="qr" alt="机器人 QQ 登录二维码" hidden><span id="qr-placeholder">正在准备二维码…</span></div>
+        <p id="qq-status" role="status">正在启动独立 QQ…</p><button id="refresh-qq" class="quiet" type="button">检查登录状态</button>
+        <p class="hint">扫码后的本人确认、滑块或安全验证需要你按 QQ 的提示完成。程序会等待，不会连续提交密码。</p>
+      </div>
+    </section>
+    <section class="card" id="owner-section" hidden>
+      <div class="step">3</div><div class="content"><h2>确认谁来管理她</h2><p>先用你的日常账号添加机器人为好友，再在下面选择。名称只是显示，权限始终按 QQ 号区分。</p>
+        <label for="administrator">我的管理账号</label><div class="input-row"><select id="administrator"><option value="">请选择你的账号</option></select><button id="load-friends" type="button" class="quiet">刷新好友</button></div>
+        <button id="finish" type="button">确认并接通机器人</button><p class="hint">初次只允许这个账号私聊，群聊保持关闭；以后可在联系人页配置。</p><p id="finish-result" role="status"></p>
+      </div>
+    </section>
+    <section class="card" id="completed" hidden><div class="step">✓</div><div class="content"><h2>基础聊天已配置</h2><p>环境和配置都已保存在本机。以后双击桌面的 Whale Companion 就能再次打开。</p><a class="button" id="dashboard" href="http://127.0.0.1:18766/qq">打开鲸娅控制页</a></div></section>
+    <section class="card"><div class="step">↗</div><div class="content"><h2>版本与升级</h2><p id="update-status">正在检查版本…</p><p id="update-progress" role="status"></p><div class="input-row"><button id="check-update" type="button" class="quiet">检查新版</button><button id="apply-update" type="button" hidden>备份并一键升级</button><a id="release-link" target="_blank" rel="noreferrer noopener" hidden>查看更新说明</a></div><p class="hint">自动检查，只在你点击后升级。保留账号、Key、聊天和记忆；任务未完成会等待，启动检查失败会恢复旧版。</p></div></section>
+    <section class="card"><div class="step">⚙</div><div class="content"><h2>按你的电脑配置</h2><p id="hardware-summary">连接后读取 CPU、内存、显卡与可用显存，不加载任何模型。</p><button id="refresh-hardware" class="quiet" type="button">刷新硬件与已保存配置</button><label for="performance-mode">性能预设</label><div class="input-row"><select id="performance-mode"><option value="quiet">日常使用优先</option><option value="balanced" selected>均衡（推荐）</option><option value="quality">质量优先</option></select><button id="load-preset" class="quiet" type="button">载入预设</button></div><ul id="hardware-advice"></ul><details><summary>手动调整资源预算</summary><div id="resource-fields" class="resource-fields"></div><p class="hint">运行中的声音服务将在下次启动时读取新参数；不会为了应用预设强行中断声音任务。换声比例超过清唱合成比例时会按合成比例收紧。</p></details><h3>我准备配置的功能</h3><p class="hint">勾选是配置计划；账号、模型或素材缺失时显示待配置，不会冒充已可用。</p><details id="feature-list"><summary id="feature-summary">查看完整功能与缺少的配置</summary><div id="feature-catalog" class="feature-catalog"></div></details><button id="save-profile" type="button">保存配置计划与资源预算</button><p id="profile-result" role="status"></p><p class="hint">所有云端模型仍受角色上限约束，统一普通速度；硬件预设不能升级权限或开启倍速。</p></div></section>
+    <details class="optional"><summary>画图、修图与声音等增强能力需要什么</summary><p>基础聊天不需要 Codex、显卡模型或代理软件。画图与修图需要你自己的 Codex 登录和项目配置；语音、唱歌需要另外配置你有权使用的模型与素材。</p><p>安装器不会附带作者账号、私聊、记忆数据库、私有音色或表情包。可在基础聊天接通后，按控制页说明逐项启用。</p></details>
+    <footer>本页只在你的电脑上开放 · 密钥不会出现在网址或安装日志中</footer>
+  </main>
+</body></html>

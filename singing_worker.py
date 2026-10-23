@@ -32,11 +32,11 @@ def main():
             import soundfile as sf
             import torch
             import yaml
-            torch.set_num_threads(6)
+            torch.set_num_threads(max(1,min(8,int(config.get('cpu_threads',6)))))
             if not torch.cuda.is_available():raise RuntimeError('A CUDA GPU is required for this local profile')
-            torch.cuda.set_per_process_memory_fraction(.55,0)
+            torch.cuda.set_per_process_memory_fraction(max(.1,min(.75,float(config.get('gpu_memory_fraction',.55)))),0)
             free,_=torch.cuda.mem_get_info()
-            if free<6*1024**3:raise RuntimeError('At least 6 GiB free VRAM is required; release other GPU work first')
+            if free<int(config.get('min_free_vram_mib',6144))*1024**2:raise RuntimeError('Available GPU memory is below the configured audio budget')
             original_load=torch.load
             def restricted_load(*args,**kwargs):
                 kwargs['weights_only']=True

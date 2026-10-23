@@ -11,7 +11,7 @@ from score_adapter import demo_request
 class BalanceTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name);self.chat=QQConversation(self.root,client=lambda *_:({'content':'x'},{}));self.bridge=QQBridge(self.root,self.chat)
-        self.bridge.cfg.update(locked_bot_id='12345678',test_contact={'name':'owner','user_id':'87654321'});self.bridge.configure(True,'12345678',['87654321'],True);self.bridge.connected=True;self.bridge.login_id='12345678';self.now=1000;self.amount='6.26';self.sent=[]
+        self.bridge.cfg.update(locked_bot_id='12345678',test_contact={'name':'long','user_id':'87654321'});self.bridge.configure(True,'12345678',['87654321'],True);self.bridge.connected=True;self.bridge.login_id='12345678';self.now=1000;self.amount='6.26';self.sent=[]
         self.bridge.call=lambda *a,**kw:self.sent.append((a,kw)) or {'message_id':42}
         self.watch=BalanceWatch(self.root,self.bridge,fetch=lambda:{'is_available':float(self.amount)>0,'balance_infos':[{'currency':'CNY','total_balance':self.amount}],'key_fingerprint':'private-fingerprint'},clock=lambda:self.now)
     def tearDown(self):self.watch.close();self.bridge.pool.shutdown(wait=True);self.tmp.cleanup()

@@ -2,12 +2,16 @@ from pathlib import Path
 from fastapi import APIRouter,Depends,HTTPException
 from fastapi.responses import HTMLResponse,FileResponse
 from pydantic import BaseModel,Field,ConfigDict
+from typing import Literal
 from proactive_chat import ProactiveChat
 
 class StrictRequest(BaseModel):
     model_config=ConfigDict(extra='forbid')
 class ProactiveConfig(StrictRequest):
     enabled:bool
+    mode:Literal['preview_only','automatic']|None=None
+    news_enabled:bool|None=None
+    bilibili_enabled:bool|None=None
 class ProactivePreview(StrictRequest):
     regenerate:bool=False
 class ProactiveEdit(StrictRequest):
@@ -31,7 +35,7 @@ def register_proactive_routes(app,*,authorize,root,bridge):
     def state():return run(service.state)
     @router.post('/config')
     def config(body:ProactiveConfig):
-        run(lambda:service.configure(body.enabled));return {'saved':True,'automatic_send':False}
+        run(lambda:service.configure(body.enabled,body.mode,body.news_enabled,body.bilibili_enabled));return {'saved':True,'automatic_send':service.settings()['mode']=='automatic' and body.enabled}
     @router.post('/preview')
     def preview(body:ProactivePreview):return {'draft':run(lambda:service.generate(manual=True,regenerate=body.regenerate)),'sent':False}
     @router.post('/drafts/{draft_id}/edit')

@@ -33,8 +33,12 @@ class ChatPermissions:
         if not context or not context.get('deliver') or not context.get('bot') or not context.get('mid'):return False
         file=self.root/'data/qq/qq-memory.sqlite3'
         if not file.exists():return False
+        from qq_scope import actor,group
+        scoped=context.get('memory_peer',peer)
+        if actor(scoped)!=actor(peer) or group(scoped)!=str(context.get('group_id','')):return False
+        if group(scoped) and str(context.get('actor_id',''))!=actor(scoped):return False
         with closing(sqlite3.connect(file)) as db:
-            row=db.execute('SELECT state FROM events WHERE bot=? AND mid=? AND peer=?',(context['bot'],str(context['mid']),peer)).fetchone()
+            row=db.execute('SELECT state FROM events WHERE bot=? AND mid=? AND peer=?',(context['bot'],str(context['mid']),scoped)).fetchone()
         return bool(row and row[0]=='accepted')
     def latest_user(self,peer):
         with closing(sqlite3.connect(self.root/'data/qq/qq-memory.sqlite3')) as db:
@@ -49,6 +53,7 @@ class ChatPermissions:
                 (uuid.uuid4().hex,peer,context['bot'],str(context['mid']),local,query,max_posts,now,now+300,'pending'))
         raise PhoneQuotaApproval(f'这小时的手机次数到上限了。你可以回复“允许这次”，额外让我在小黑盒搜「{query}」、最多读{max_posts}篇；5分钟内有效，只读不发布。也可以说“取消授权”。')
     def resolve(self,peer,text,context):
+        if (context or {}).get('group_id'):return None
         if not self.origin(peer,context):return None
         if re.fullmatch(r'(?:撤销|取消)(?:这次|本次|所有)?授权[。！!\s]*',text.strip()):
             with self.db() as db:db.execute("UPDATE approvals SET status='revoked' WHERE peer=? AND bot=? AND status IN ('pending','approved')",(peer,context['bot']))

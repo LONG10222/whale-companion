@@ -1,4 +1,4 @@
-"""Official DeepSeek balance API and explicitly authorized threshold alerts to owner."""
+"""Official DeepSeek balance API and explicitly authorized threshold alerts to long."""
 from pathlib import Path
 from contextlib import contextmanager
 from decimal import Decimal,InvalidOperation
@@ -47,7 +47,7 @@ class BalanceWatch:
     def state(self):
         with self.db() as db:row=db.execute('SELECT value FROM state WHERE id=1').fetchone()
         data=json.loads(row[0]) if row else {};data.pop('key_fingerprint',None)
-        return {'config':self.config(),'balance':data,'contact':'owner','source':'DeepSeek 官方 /user/balance','running':bool(self.thread and self.thread.is_alive())}
+        return {'config':self.config(),'balance':data,'contact':'long','source':'DeepSeek 官方 /user/balance','running':bool(self.thread and self.thread.is_alive())}
     def refresh(self,notify=False):
         if not self.gate.acquire(False):return self.state()
         try:
@@ -89,7 +89,7 @@ class BalanceWatch:
         finally:self.gate.release()
     def scope(self):
         s=self.bridge.snapshot();who=str((s.get('test_contact') or {}).get('user_id',''))
-        if (s.get('test_contact') or {}).get('name')!='owner' or s['allowed_private_ids']!=[who] or self.bridge.cfg.get('locked_bot_id')!=s['bot_id']:raise ValueError('余额提醒只发送给已锁定的long。')
+        if (s.get('test_contact') or {}).get('name')!='long' or s['allowed_private_ids']!=[who] or self.bridge.cfg.get('locked_bot_id')!=s['bot_id']:raise ValueError('余额提醒只发送给已锁定的long。')
         return who,s
     def text(self):
         state=self.refresh();data=state['balance'];cfg=state['config']

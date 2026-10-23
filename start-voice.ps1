@@ -1,4 +1,4 @@
-﻿$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 $taskConfig = Get-Content -Raw -Encoding UTF8 -LiteralPath 'settings.local.json' | ConvertFrom-Json
 try {

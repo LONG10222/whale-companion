@@ -19,16 +19,16 @@ def external_intent(text):
     if re.search('记忆|旧聊天|以前|之前|上次|还记得|回忆',text) and not re.search('网上|上网|网页|官网|官方|新闻|最新|公告|互联网',text):return False
     return bool(re.search('查|搜|上网|网上|网页|链接|最新|新闻|今天.{0,10}(更新|公告|消息)',text))
 def explicit_search_request(text):
-    return external_intent(text) and bool(re.search('帮我查|帮我搜|查一下|搜一下|查查|搜搜|上网找|去查|去搜|搜索.{1,}',text))
+    return external_intent(text) and bool(re.search('帮我查|帮我搜|查一下|搜一下|查查|搜搜|上网找|去查|去搜|搜索.{1,}|(?:什么时候|要不|不如|可以|能不能).{0,15}(?:上网|网上).{0,12}(?:学|找|看|了解)|(?:上网|网上).{0,8}学.{1,}',text))
 def planning_intent(text):
     return phone_intent(text) or external_intent(text) or bool(re.search('还记得|以前|之前|上次|过去|记忆',text))
 def resolve_followup(text,history):
-    if not re.fullmatch(r'(?:那就|现在|帮我)?(?:再试(?:一(?:次|下))?|重试(?:一(?:次|下))?|继续(?:吧|查|找|搜)?|再查一下|再找一下)[。！!\s]*',text.strip()):return text
+    if not re.fullmatch(r'(?:那就|现在|帮我|可以|那你)?(?:试试|试一下|再试(?:一(?:次|下))?|重试(?:一(?:次|下))?|继续(?:吧|查|找|搜)?|再查一下|再找一下)[。！!\s]*',text.strip()):return text
     from persona_learning import safe_question
     for role,previous in reversed(history[-8:]):
         if role!='user':continue
         previous=safe_question(previous)
-        if re.fullmatch(r'(?:再试|重试|继续).*',previous):continue
+        if re.fullmatch(r'(?:试试|试一下|再试|重试|继续).*',previous):continue
         # Only a real prior user request can supply the missing subject, never a screenshot or assistant claim.
         if phone_intent(previous) or external_intent(previous):return previous+'\n对方本轮明确续接：'+text
         break

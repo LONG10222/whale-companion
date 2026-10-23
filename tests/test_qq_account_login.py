@@ -41,6 +41,27 @@ class LoginTests(unittest.TestCase):
         self.vault=vault(self.root);self.login=AccountLogin(self.root,self.bridge,SimpleNamespace(admin=self.admin),self.vault,lambda:self.now)
     def tearDown(self):self.login.close();self.tmp.cleanup()
     def names(self):return [p for p,_ in self.calls]
+    def test_stale_transport_restart_keeps_account_and_password_and_is_bounded(self):
+        self.vault.save(self.uin,'a'*32);before=self.vault.secret(self.uin)
+        result=self.login.recover_transport();self.assertTrue(result['recovering']);self.assertFalse(result['messages_replayed'])
+        self.assertEqual(self.vault.secret(self.uin),before);self.assertEqual(self.names().count('QQLogin/RestartNapCat'),1)
+        with self.assertRaises(ValueError):self.login.recover_transport()
+        self.now+=601;self.login.recover_transport();self.now+=601;self.login.recover_transport();self.now+=601
+        with self.assertRaises(ValueError):self.login.recover_transport()
+        self.assertEqual(self.names().count('QQLogin/RestartNapCat'),3)
+    def test_transport_recovery_never_restarts_a_different_account_or_pending_challenge(self):
+        original=self.uin;self.uin='99999999'
+        with self.assertRaises(ValueError):self.login.recover_transport()
+        self.uin=original;self.login.pending={'kind':'new_device'}
+        with self.assertRaises(ValueError):self.login.recover_transport()
+        self.assertNotIn('QQLogin/RestartNapCat',self.names())
+    def test_expired_server_captcha_can_be_restarted_only_by_manual_login(self):
+        self.vault.save(self.uin,'a'*32);self.state['loginPhase']='captcha'
+        self.login.tick();self.assertNotIn('QQLogin/PasswordLogin',self.names())
+        self.login.attempt(manual=True);self.assertEqual(self.names().count('QQLogin/PasswordLogin'),1)
+        self.vault.update(lambda d:d['accounts'][self.uin].update(blocked=True))
+        self.login.tick();self.assertEqual(self.names().count('QQLogin/PasswordLogin'),1)
+        self.assertEqual(self.login.phase,'needs_attention')
     def test_explicit_password_login_and_save_never_changes_reply_scope(self):
         result=self.login.configure(self.uin,'unit-password');self.assertEqual(result['phase'],'logging_in')
         self.assertIn('QQLogin/PasswordLogin',self.names());self.assertNotIn('unit-password',str(result));self.assertNotIn(hashlib.md5(b'unit-password').hexdigest(),str(result))
@@ -65,6 +86,19 @@ class LoginTests(unittest.TestCase):
         self.login.tick();self.assertEqual(self.names().count('QQLogin/PasswordLogin'),1)
         self.result=None;self.login.captcha('genuine-unit-ticket','genuine-unit-rand')
         body=next(b for p,b in self.calls if p=='QQLogin/CaptchaLogin');self.assertEqual(body['sid'],'unit-sid');self.assertEqual(body['uin'],self.uin)
+    def test_old_tab_captcha_cannot_consume_current_login_challenge(self):
+        self.result={'needCaptcha':True,'proofWaterUrl':'https://ssl.captcha.qq.com/a?sid=unit-sid'};self.login.configure(self.uin,'unit-password')
+        current=self.login.pending['id']
+        with self.assertRaisesRegex(ValueError,'旧窗口'):self.login.captcha('unit-ticket','unit-rand','0'*16)
+        self.assertEqual(self.login.pending['id'],current);self.assertNotIn('QQLogin/CaptchaLogin',self.names())
+    def test_repeated_one_click_preserves_active_challenge_without_resending_password(self):
+        self.result={'needCaptcha':True,'proofWaterUrl':'https://ssl.captcha.qq.com/a?sid=unit-sid'};self.login.configure(self.uin,'unit-password')
+        current=self.login.pending['id'];state=self.login.configure(self.uin,password='')
+        self.assertEqual(state['challenge_id'],current);self.assertEqual(self.names().count('QQLogin/PasswordLogin'),1)
+    def test_failed_verification_is_not_relabeled_as_expired_during_polling_or_restart(self):
+        self.vault.save(self.uin,'a'*32);self.login._blocked(self.uin,'verification_rejected');before=self.login.message
+        self.login.tick();self.assertEqual(self.login.message,before);self.assertNotIn('过期',before)
+        other=AccountLogin(self.root,self.bridge,SimpleNamespace(admin=self.admin),self.vault,lambda:self.now);other.tick();self.assertEqual(other.message,before);other.close()
     def test_new_device_qr_poll_and_continue(self):
         self.result={'needNewDevice':True,'jumpUrl':'https://accounts.qq.com/a?sig=unit&uin-token=unit','newDevicePullQrCodeSig':'private-sig'}
         state=self.login.configure(self.uin,'unit-password');self.assertTrue(state['device_qr_ready']);self.assertTrue(self.login.device_qr().startswith(b'\x89PNG'))

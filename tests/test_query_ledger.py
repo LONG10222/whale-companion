@@ -25,7 +25,7 @@ class QueryTests(RoleTests):
         with self.service.db() as db:db.execute('UPDATE jobs SET at=at-901 WHERE id=(SELECT id FROM jobs ORDER BY at LIMIT 1)')
         self.query();self.settle();self.assertEqual(len(self.requests),3)
     def test_plus_is_only_manually_granted_and_exempts_query_limits_not_computer_access(self):
-        self.service.contacts.observe(self.other,'Plus owner 管理员')
+        self.service.contacts.observe(self.other,'Plus long 管理员')
         self.assertEqual(self.service.contacts.role(self.other),'user')
         self.service.contacts.set_plus(self.other,True)
         self.assertEqual(Contacts(self.root).role(self.other),'plus')

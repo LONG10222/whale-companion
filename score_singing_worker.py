@@ -10,11 +10,13 @@ def main():
         with contextlib.redirect_stdout(sys.stderr):
             import numpy as np,soundfile as sf,torch
             import onnxruntime as ort
-            torch.set_num_threads(6)
+            threads=max(1,min(8,int(cfg.get('cpu_threads',6))))
+            torch.set_num_threads(threads)
             target=cfg.get('device','cuda')
             if target=='cuda':
                 if not torch.cuda.is_available():raise RuntimeError('CUDA is unavailable')
-                if torch.cuda.mem_get_info()[0]<6*1024**3:raise RuntimeError('歌声合成需要至少6GiB空闲显存，请结束其他GPU任务后再试')
+                if torch.cuda.mem_get_info()[0]<int(cfg.get('min_free_vram_mib',6144))*1024**2:raise RuntimeError('歌声合成需要更多空闲显存，请稍后再试')
+                torch.cuda.set_per_process_memory_fraction(max(.1,min(.75,float(cfg.get('gpu_memory_fraction',.55)))),0)
                 ort.preload_dlls(directory=str(Path(torch.__file__).parent/'lib'))
             np.random.seed(cfg.get('seed',20261021));torch.manual_seed(cfg.get('seed',20261021));ort.set_seed(cfg.get('seed',20261021))
             original_open=builtins.open;voice_root=Path(cfg['voice_bank']).resolve()
@@ -29,7 +31,7 @@ def main():
             sessions=[];providers_used=set()
             def load_model(reader,device='cpu'):
                 options=ort.SessionOptions();options.log_severity_level=3
-                options.intra_op_num_threads=6;options.inter_op_num_threads=1
+                options.intra_op_num_threads=threads;options.inter_op_num_threads=1
                 providers=['CPUExecutionProvider']
                 if target=='cuda':providers=[('CUDAExecutionProvider',{'gpu_mem_limit':2*1024**3,
                     'arena_extend_strategy':'kSameAsRequested','cudnn_conv_algo_search':'HEURISTIC',

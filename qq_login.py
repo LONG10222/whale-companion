@@ -40,6 +40,7 @@ class LoginService:
                 phase=state.get('loginPhase','');pending=bool(state.get('qrLoginAccepted') or phase in {'qrcode_scanned','initializing','captcha','new_device','reconnecting'})
                 out={'logged_in':bool(state.get('isLogin')),'phase':phase,'pending_confirmation':pending,'expected_bot':expected,'qr_ready':False,'message':''}
                 owned=self.accounts.status() if getattr(self,'accounts',None) else {}
+                if owned.get('recovery_mode')=='qr' and phase in {'captcha','new_device','password_login','logging_in','quick_login'}:pending=False
                 if out['logged_in']:
                     info=self.admin.call('QQLogin/GetQQLoginInfo') or {};uin=str(info.get('uin') or '')
                     out.update(login_id=uin,account_matches=uin==expected,message='机器人已登录，正在自动接通。' if uin==expected else '登录账号与机器人小号不一致，请使用指定小号。')
@@ -58,7 +59,7 @@ class LoginService:
             except (httpx.ConnectError,httpx.ConnectTimeout):
                 if now-self.last_start>=60:
                     script=self.root/'start-qq.ps1'
-                    if script.is_file():subprocess.Popen(['powershell.exe','-NoProfile','-WindowStyle','Hidden','-File',str(script)],cwd=str(self.root),stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
+                    if script.is_file():subprocess.Popen(['powershell.exe','-NoProfile','-WindowStyle','Hidden','-File',str(script),'-EnsureOnly'],cwd=str(self.root),stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
                     self.last_start=now
                 return {'logged_in':False,'qr_ready':False,'message':'独立QQ客户端正在启动，页面会自动连接。'}
             except Exception:return {'logged_in':False,'qr_ready':False,'message':'独立QQ暂未就绪，页面会自动重试；手机若有验证请自行完成。'}

@@ -15,7 +15,7 @@ import sys
 import threading
 import time
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
@@ -141,11 +141,13 @@ def ensure_worker(engine):
         worker_config = json.loads(Path(CONFIG["dania_config"]).read_text(encoding="utf-8"))
         worker_python = CONFIG["dania_python"]
         worker_name = "voice_worker_dania.py"
+    from audio_budget import apply
+    worker_config=apply(ROOT,worker_name,worker_config)
     PROCESS = subprocess.Popen(
         [worker_python, "-u", str(ROOT / worker_name), json.dumps(worker_config)],
         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=LOG,
         text=True, encoding="utf-8", bufsize=1,
-        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)|getattr(subprocess,'BELOW_NORMAL_PRIORITY_CLASS',0),
     )
     threading.Thread(target=read_worker, args=(PROCESS, RESPONSES), daemon=True).start()
     message = receive()
@@ -182,6 +184,8 @@ async def lifespan(_app):
 
 
 app = FastAPI(title="本地语音测试台", lifespan=lifespan)
+from local_session import register_local_sessions
+LOCAL_SESSIONS=register_local_sessions(app,ROOT,CONFIG['api_token'],port=CONFIG['port'])
 
 
 @app.exception_handler(RequestValidationError)
@@ -193,10 +197,8 @@ async def validation_error(_request, exc):
     return JSONResponse(status_code=422, content={'detail': errors})
 
 
-def authorize(authorization: str = Header(default="")):
-    expected = "Bearer " + CONFIG["api_token"]
-    if not secrets.compare_digest(authorization, expected):
-        raise HTTPException(401, "Invalid local API token")
+def authorize(request: Request, authorization: str = Header(default="")):
+    return LOCAL_SESSIONS.authorize(request,authorization)
 
 
 class SpeechRequest(BaseModel):
@@ -211,7 +213,7 @@ def synthesize(request):
     global LAST_USED, LAST_METRICS
     text = request.input.strip()
     if not text or len(text) > CONFIG["max_text_chars"]:
-        raise HTTPException(400, "Text is empty or too owner; split the reply into shorter sentences")
+        raise HTTPException(400, "Text is empty or too long; split the reply into shorter sentences")
     engine = 'qwen3-tts-local' if request.model == 'tts-v4' else request.model
     speakers = ({"dania"} if engine == 'dania-gptsovits' else {"zh-3", "zh-12"} if engine == 'kokoro-cpu' else
                 {"vivian", "serena", "uncle_fu", "dylan", "eric", "ryan", "aiden", "ono_anna", "sohee"})
@@ -300,7 +302,7 @@ def index():
     return (ROOT / "testbench.html").read_text(encoding="utf-8")
 
 
-@app.get("/samples/{name}")
+@app.get("/samples/{name}",dependencies=[Depends(authorize)])
 def sample(name: str):
     if name not in {"dania-daily.wav", "dania-playful.wav", "dania-caring.wav", "dania-playful-smooth.wav", "dania-playful-normal.wav"}:
         raise HTTPException(404, "Unknown sample")
@@ -323,6 +325,9 @@ MOBILE_SERVICE=register_mobile_routes(app,authorize=authorize,root=ROOT)
 
 LOCAL_LEARNING=register_local_assistant_host(app,authorize=authorize,root=ROOT,lock=LOCK,unload=unload_locked)
 
+
+from maintenance_guard import register_maintenance_guard
+register_maintenance_guard(app,ROOT)
 
 if __name__ == "__main__":
     uvicorn.run(app, host=CONFIG["host"], port=CONFIG["port"], access_log=False)

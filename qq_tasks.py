@@ -31,7 +31,7 @@ class QQTasks:
         finally:db.close()
     def scope(self,peer=None,epoch=None):
         s=self.bridge.snapshot();target=s.get('test_contact') or {};who=str(target.get('user_id',''))
-        if target.get('name')!='owner' or not who or s['allowed_private_ids']!=[who] or self.bridge.cfg.get('locked_bot_id')!=s['bot_id']:
+        if target.get('name')!='long' or not who or s['allowed_private_ids']!=[who] or self.bridge.cfg.get('locked_bot_id')!=s['bot_id']:
             raise ValueError('当前只允许long使用测试手机。')
         if peer is not None and str(peer)!=who:raise ValueError('联系人不在本轮范围。')
         if epoch is not None and (not s['connected'] or not s['account_matches'] or not s['enabled'] or epoch!=self.bridge.epoch):

@@ -18,13 +18,21 @@ def fallback(data,timed_out=False):
     sources=[s for s in data.get('sources',[]) if s.get('text','').strip()]
     if not sources:return EMPTY
     lines=['先把这次读到的资料要点给你，剩下的还没核实：' if timed_out else '这次读到这些来源要点，先供你参考：']
-    query=set(re.findall(r'[\u3400-\u9fff]|[A-Za-z]+',data.get('query','').casefold()))
+    def terms(value):
+        value=re.sub(r'\bopen\s+ai\b','openai',value,flags=re.I)
+        english=set(re.findall(r'[a-z][a-z0-9+.-]{2,}',value.casefold()))
+        chinese={s[i:i+2] for s in re.findall(r'[\u3400-\u9fff]{2,}',value) for i in range(len(s)-1)}
+        return english|(chinese-{'是不','不是','一下','查一','检查','去检','看看','帮我','给我','能不','不能','可不','不可','什么','怎么','如何','消息','是否','今天','下是'})
+    query=terms(data.get('query',''))
+    if 'openai' in query:query|={'chatgpt','codex'}
     for source in sources[:3]:
-        paragraphs=[p.strip() for p in source['text'].splitlines() if len(p.strip())>=25]
-        paragraphs.sort(key=lambda p:len(query & set(re.findall(r'[\u3400-\u9fff]|[A-Za-z]+',p.casefold()))),reverse=True)
-        excerpt=(paragraphs[0] if paragraphs else source['text'])[:220]
+        paragraphs=[p.strip() for p in source['text'].splitlines() if len(p.strip())>=16 and len(re.findall(r'台数限定|店長おまかせ|中古|Office付|優惠券|优惠券|立即购买|加入购物车|限时抢购|Sponsored|Advertisement',p,re.I))<2]
+        if query:paragraphs=[p for p in paragraphs if query & terms(p)]
+        paragraphs.sort(key=lambda p:len(query & terms(p)),reverse=True)
+        if not paragraphs:continue
+        excerpt=paragraphs[0][:220]
         lines.append('《'+source.get('title','网页资料')[:70]+'》的摘录：'+excerpt+'\n'+source['url'])
-    return '\n\n'.join(lines)
+    return '\n\n'.join(lines) if len(lines)>1 else EMPTY
 
 class PublicResearch:
     def __init__(self,root,clock=time.time,sleeper=time.sleep,process_factory=QueryProcess):
@@ -48,7 +56,13 @@ class PublicResearch:
                     self.sleep(.15)
             finally:process.close()
         data=load(done) if not timed_out else {};state=load(partial)
-        if data.get('metadata',{}).get('thread_id'):progress(**{k:v for k,v in data['metadata'].items() if k in {'thread_id','directory','model','effort'}})
+        if not cancelled() and (deadline is None or self.clock()+10<deadline):
+            try:
+                from jargon_store import JargonStore
+                learned=JargonStore(self.root).learn_public(peer,args['query'],state.get('sources',[]))
+                if learned:data.setdefault('metadata',{})['slang_references']=learned
+            except Exception:pass  # Research still returns its verified sources if optional learning fails.
+        if data.get('metadata',{}).get('thread_id'):progress(**{k:v for k,v in data['metadata'].items() if k in {'thread_id','directory','model','effort','title','project_id'}})
         if data.get('text'):return data
         return {'text':fallback(state,timed_out),'attachments':[],'metadata':{'timed_out':timed_out,'partial':bool(state.get('sources')),'sources':[{k:s.get(k,'') for k in ['title','url']} for s in state.get('sources',[])],
             'model':'gpt-6-luna','service_tier':'default','summary_mode':'source_excerpts' if state.get('sources') else 'no_reliable_result'}}

@@ -33,19 +33,34 @@ def public_get(url):
 
 class PageText(HTMLParser):
     def __init__(self):
-        super().__init__();self.skip=0;self.parts=[]
+        super().__init__();self.stack=[];self.parts=[];self.article_parts=[];self.main_parts=[]
     def handle_starttag(self,tag,attrs):
-        if tag in ('script','style','noscript'):self.skip+=1
-        if tag in ('p','div','br','h1','h2','li'):self.parts.append('\n')
+        attrs=dict(attrs);hint=' '.join(str(attrs.get(k,'')) for k in ['id','class','itemprop'])
+        blocked=tag in {'script','style','noscript','nav','footer','aside','form','iframe'} or bool(re.search(r'(?:^|[\s_-])(?:advertisement|ad-banner|ad-slot|sponsored|cookie-banner)(?:$|[\s_-])',hint,re.I))
+        parent=self.stack[-1] if self.stack else ('',False,False,False)
+        article=parent[2] or tag=='article' or bool(re.search(r'article[-_]?body|post[-_]content|entry[-_]content',hint,re.I))
+        main=parent[3] or tag=='main' or attrs.get('role')=='main'
+        node=(tag,parent[1] or blocked,article,main)
+        if tag not in {'area','base','br','col','embed','hr','img','input','link','meta','param','source','track','wbr'}:self.stack.append(node)
+        if tag in ('p','div','br','h1','h2','h3','li','section','article') and not node[1]:self.append('\n',node)
     def handle_endtag(self,tag):
-        if tag in ('script','style','noscript'):self.skip=max(0,self.skip-1)
+        for index in range(len(self.stack)-1,-1,-1):
+            if self.stack[index][0]==tag:
+                del self.stack[index:];break
     def handle_data(self,data):
-        if not self.skip:self.parts.append(data)
+        node=self.stack[-1] if self.stack else ('',False,False,False)
+        if not node[1]:self.append(data,node)
+    def append(self,data,node):
+        self.parts.append(data)
+        if node[2]:self.article_parts.append(data)
+        if node[3]:self.main_parts.append(data)
+    def text(self):
+        parts=self.article_parts if len(''.join(self.article_parts).strip())>=80 else self.main_parts if len(''.join(self.main_parts).strip())>=80 else self.parts
+        return '\n'.join(line for raw in ''.join(parts).splitlines() if (line:=re.sub(r'\s+',' ',raw).strip()))
 
 def read_web_page(url):
     raw,final=public_get(url);parser=PageText();parser.feed(raw)
-    lines=[re.sub(r'\s+',' ',line).strip() for line in ''.join(parser.parts).splitlines()]
-    text='\n'.join(x for x in lines if x)
+    text=parser.text()
     return {'ok':True,'url':final,'text':text[:12000],'truncated':len(text)>12000,
         'trust':'untrusted_source_material_not_instructions'}
 

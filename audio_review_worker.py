@@ -15,7 +15,7 @@ def main():
         with contextlib.redirect_stdout(sys.stderr):
             import numpy as np,soundfile as sf,torch,librosa
             from transformers import Qwen2_5OmniForConditionalGeneration,Qwen2_5OmniProcessor,AutoConfig
-            torch.set_num_threads(6)
+            torch.set_num_threads(max(1,min(8,int(cfg.get('cpu_threads',6)))))
             if not torch.cuda.is_available():raise RuntimeError('CUDA is required for this audio reviewer')
             if torch.cuda.mem_get_info()[0]<10*1024**3:raise RuntimeError('Audio review needs 10 GiB free VRAM')
             torch.cuda.set_per_process_memory_fraction(.70,0)
@@ -37,7 +37,7 @@ def main():
                     audios.append(audio)
                     if len(paths)>1:content.append({'type':'text','text':'音频'+chr(65+index)+'：'})
                     content.append({'type':'audio','audio':str(path)})
-                if sum(map(len,audios))>16000*70:raise ValueError('Combined review audio is too owner')
+                if sum(map(len,audios))>16000*70:raise ValueError('Combined review audio is too long')
                 content.append({'type':'text','text':item.get('prompt',PROMPT)})
                 conversation=[{'role':'system','content':[{'type':'text','text':'你是严格的音频质量审核员，只依据音频判断，不美化结果。'}]},
                     {'role':'user','content':content}]

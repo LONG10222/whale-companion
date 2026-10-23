@@ -4,19 +4,38 @@ from contextlib import closing
 import hashlib,json,re,shutil,sqlite3,threading,time,uuid
 import httpx
 
+class AdminOperationError(ValueError):
+    """Classify known login failures without copying upstream credentials or URLs."""
+    def __init__(self,path,message):
+        self.reason='login_rejected'
+        if path.startswith('QQLogin/'):
+            if re.search(r'密码.{0,12}(错误|不正确)|账号或密码|password.{0,15}(incorrect|wrong)',message,re.I):self.reason='password_rejected'
+            elif re.search(r'频繁|稍后再试|次数.{0,8}(多|限制)|too many|rate.?limit',message,re.I):self.reason='rate_limited'
+            elif path=='QQLogin/CaptchaLogin':self.reason='verification_rejected'
+        super().__init__('独立QQ未接受这次操作。')
+
 class NapcatAdmin:
-    def __init__(self,root):self.root=Path(root);self.credential=''
+    def __init__(self,root):self.root=Path(root);self.credential='';self.auth_lock=threading.RLock()
     def config(self):return json.loads((self.root/'configs/qq-client.local.json').read_text(encoding='utf-8'))
     def call(self,path,body=None):
-        cfg=self.config();ui=json.loads((Path(cfg['napcat_root'])/'config/webui.json').read_text(encoding='utf-8'))
-        with httpx.Client(trust_env=False,timeout=12) as c:
-            if not self.credential:
-                r=c.post('http://127.0.0.1:6099/api/auth/login',json={'hash':hashlib.sha256((ui['token']+'.napcat').encode()).hexdigest()});r.raise_for_status()
-                self.credential=r.json().get('data',{}).get('Credential','')
-                if not self.credential:raise ValueError('独立QQ管理服务未就绪。')
-            r=c.post('http://127.0.0.1:6099/api/'+path,json=body or {},headers={'Authorization':'Bearer '+self.credential});r.raise_for_status();data=r.json()
-            if data.get('code')!=0:raise ValueError('独立QQ管理服务暂未完成操作，请稍后重试。')
-            return data.get('data')
+        with self.auth_lock:
+            cfg=self.config();ui=json.loads((Path(cfg['napcat_root'])/'config/webui.json').read_text(encoding='utf-8'))
+            with httpx.Client(trust_env=False,timeout=12) as c:
+                for attempt in range(2):
+                    if not self.credential:
+                        r=c.post('http://127.0.0.1:6099/api/auth/login',json={'hash':hashlib.sha256((ui['token']+'.napcat').encode()).hexdigest()});r.raise_for_status()
+                        self.credential=(r.json().get('data') or {}).get('Credential','')
+                        if not self.credential:raise ValueError('独立QQ管理服务认证未完成。')
+                    r=c.post('http://127.0.0.1:6099/api/'+path,json=body or {},headers={'Authorization':'Bearer '+self.credential})
+                    if r.status_code in {401,403} and attempt==0:self.credential='';continue
+                    r.raise_for_status();data=r.json()
+                    message=str(data.get('message') or data.get('msg') or '').strip().lower()
+                    # NapCat's auth middleware can return HTTP 200 with an Unauthorized envelope.
+                    if data.get('code')!=0 and message in {'unauthorized','token expired','invalid token','credential expired'} and attempt==0:
+                        self.credential='';continue
+                    if data.get('code')!=0:raise AdminOperationError(path,message)
+                    return data.get('data')
+        raise ValueError('独立QQ管理服务认证已失效，请稍后重试。')
     def login(self):
         state=self.call('QQLogin/CheckLoginStatus') or {}
         if not state.get('isLogin'):return {'logged_in':False}
@@ -32,7 +51,7 @@ class AccountSwitch:
         self.path.parent.mkdir(parents=True,exist_ok=True);tmp=self.path.with_suffix('.tmp');tmp.write_text(json.dumps(state,ensure_ascii=False,indent=2),encoding='utf-8');tmp.replace(self.path)
     def scope(self):
         cfg=self.bridge.cfg;who=str((cfg.get('test_contact') or {}).get('user_id',''))
-        if (cfg.get('test_contact') or {}).get('name')!='owner' or cfg['allowed_private_ids']!=[who]:raise ValueError('换号前必须保持测试联系人仅为long。')
+        if (cfg.get('test_contact') or {}).get('name')!='long' or cfg['allowed_private_ids']!=[who]:raise ValueError('换号前必须保持测试联系人仅为long。')
         return who
     def begin(self):
         with self.lock:
@@ -63,7 +82,7 @@ class AccountSwitch:
             state['phase']='awaiting_login';self.save(state)
             return {'phase':state['phase'],'message':'独立QQ已切到扫码准备，旧号回复保持暂停。'}
     def state(self):
-        s=self.load();out={'phase':s['phase'],'old_bot':s.get('old_bot'),'new_bot':s.get('new_bot'),'reply_enabled':self.bridge.cfg['enabled'],'contact':'owner','memory_preserved':True}
+        s=self.load();out={'phase':s['phase'],'old_bot':s.get('old_bot'),'new_bot':s.get('new_bot'),'reply_enabled':self.bridge.cfg['enabled'],'contact':'long','memory_preserved':True}
         try:out['login']=self.admin.login()
         except Exception:out['login']={'logged_in':False,'message':'独立QQ正在重启或等待扫码。'}
         if s['phase']=='awaiting_login' and out['login'].get('logged_in') and out['login'].get('uin')!=s['old_bot']:out['phase']='awaiting_bind'

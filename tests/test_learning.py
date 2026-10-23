@@ -14,7 +14,7 @@ class LearningTests(unittest.TestCase):
         self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name);self.card=dania_card();self.personas=PersonaStore(self.root);self.personas.save(self.card)
         self.memory=ChatMemory(self.root/'data/qq',self.personas);self.store=self.memory.learning;self.peer='87654321'
         self.memory.add(self.peer,'user','今天好累。');self.mid=self.memory.add(self.peer,'assistant','建议合理安排作息。')
-        (self.root/'qq.local.json').write_text(json.dumps({'test_contact':{'name':'owner','user_id':self.peer}}),encoding='utf-8')
+        (self.root/'qq.local.json').write_text(json.dumps({'test_contact':{'name':'long','user_id':self.peer}}),encoding='utf-8')
         (self.root/'configs/local-learning.local.json').write_text('{"mode":"cloud"}',encoding='utf-8')
     def tearDown(self):self.tmp.cleanup()
     def feedback(self,rating='rewrite',correction='先歇一会儿，今天已经够忙了。'):
@@ -86,7 +86,7 @@ class LearningTests(unittest.TestCase):
             self.assertEqual(client.post('/qq/learning/undo',json={}).status_code,401)
             self.assertEqual(client.get('/qq/learning/export').status_code,401)
             h={'Authorization':'Bearer local-test'}
-            state=client.get('/qq/learning/state',headers=h).json();self.assertEqual(state['contact'],'owner');self.assertEqual(len(state['turns']),1)
+            state=client.get('/qq/learning/state',headers=h).json();self.assertEqual(state['contact'],'long');self.assertEqual(len(state['turns']),1)
             wrong=self.memory.add('99999999','assistant','不能评价我')
             self.assertEqual(client.post('/qq/learning/feedback',headers=h,json={'message_id':wrong,'rating':'like'}).status_code,400)
     def test_candidate_extraction_is_pending_and_requires_literal_user_evidence(self):

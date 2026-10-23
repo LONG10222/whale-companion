@@ -19,7 +19,7 @@ class DemoRequest(BaseModel):
 def register_agent_routes(app,*,authorize,root):
     root=Path(root);gate=threading.Lock()
     state={'busy':False,'events':[]}
-    @app.get('/agent/status')
+    @app.get('/agent/status',dependencies=[Depends(authorize)])
     def status():
         return {'deepseek_key_configured':deepseek_client.ready(),'model':deepseek_client.configuration()['model'],
             'busy':state['busy'],'events':state['events'][-30:],'tools':[t['function']['name'] for t in TOOLS]}

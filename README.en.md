@@ -1,115 +1,103 @@
 <div align="center">
 
-# Whale Companion
+# Whale Companion · 鲸娅
 
-**A local QQ companion with memory, contextual reactions, bounded tools, and visible usage.**
+**A QQ AI companion with locally managed memory, permissions and tools.**
 
-[简体中文](README.md) · [Architecture](docs/ARCHITECTURE.md) · [Build journal](docs/BUILD_LOG.md) · [Credits](ATTRIBUTIONS.md)
+[简体中文](README.md) · [One-click setup](docs/ONE_CLICK_SETUP.md) · [Architecture](docs/ARCHITECTURE.md) · [Credits](ATTRIBUTIONS.md) · [Privacy](PRIVACY.md)
 
-![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
-![Platform](https://img.shields.io/badge/Platform-Windows-0078D4)
+![Windows](https://img.shields.io/badge/Windows-10%2F11_x64-0078D4)
+![Python](https://img.shields.io/badge/Bootstrap-Python_3.13-3776AB)
 ![License](https://img.shields.io/badge/License-GPL--3.0-blue)
 
 </div>
 
-Whale Companion is a Windows-first local QQ companion prototype. DeepSeek handles conversation and tool selection. SQLite stores contact-scoped memory, feedback, and task state. Optional Codex Luna, speech, and singing integrations add source-grounded research, images, and audio.
+DeepSeek handles conversation and tool selection. SQLite stores identity-scoped memory and task state. A local application connects a dedicated QQ client and manages stickers, images, speech, public research and optional Codex work.
 
-This repository contains application source, design decisions, and configuration templates. It includes **no personal instance, account session, chat database, API key, character checkpoint, or downloaded sticker artwork**. It does not train the hosted DeepSeek model or implement every QQ client feature.
+The repository contains application source, configuration templates and design notes. Accounts, keys, passwords, chats, contact databases, photos, reference recordings, model weights and downloaded sticker packs stay on the operator's computer. It does not train the hosted DeepSeek model.
 
-## Features and current scope
+> This documentation describes a release candidate. Available downloads, verified scope and known issues are listed in [Releases](https://github.com/LONG10222/whale-companion/releases). Publication requires functional acceptance and privacy checks.
 
-| Capability | Implementation |
-|---|---|
-| Private QQ chat | NapCat / OneBot v11, a dedicated bot account, explicit allowlist, deduplication, burst batching |
-| Memory and persona | Recent context, original-user evidence profiles, separate task state and owner-reviewed feedback |
-| Images and reactions | Image/GIF understanding, contextual local stickers, mostly separate text and image bubbles |
-| Video | Bounded frame sampling, cloud vision, optional CPU speech recognition |
-| Speech and singing | Local CPU input transcription, exact read-aloud, optional score-driven singing and voice conversion |
-| Login and switching | Saved-session recovery, encrypted password fallback, human QQ verification and staged account switching |
-| Public research | Controlled public-page reads, Luna summaries, source links, partial results on timeout |
-| Access and budgets | QQ-number identities; administrator, regular, manual Plus; rolling two queries/15 min and five-minute limit |
-| Usage ledger | Task events, reported tokens, balance snapshots and net changes; unknown cost stays unknown |
-| Desktop launch | Clash → Google HTTPS check → ChatGPT → local services; existing processes are reused |
+## Get started
 
-**Not integrated:** WeChat, live group replies, proactive friend requests, Qzone browsing, and Qzone publishing. An upstream API does not mean a capability has been enabled or validated here. Proactive chat prepares drafts for the owner to send.
+1. Download `WhaleCompanion-vVERSION-windows-x64.zip` from an official release and extract the whole folder.
+2. Double-click **Install.cmd**. It verifies and prepares portable Python, an independent QQ runtime and base dependencies, then opens a local wizard.
+3. Enter your own **DeepSeek API key**, scan with a dedicated bot QQ account and complete phone confirmation.
+4. Add the bot from your personal account, select that account in the wizard and confirm it as administrator.
 
-## Quick start
+Later, use the desktop **Whale Companion** shortcut or **Start.cmd**. Running services are reused; an unrelated process occupying a required port is left running. Basic chat does not require preinstalled Python, Node, Git, Codex, Clash or GPU models. Initially, only the confirmed administrator can chat privately; groups are off. QQ may require personal confirmation or verification. See [setup and upgrades](docs/ONE_CLICK_SETUP.md).
 
-### Prerequisites
+## Capabilities and configuration
 
-Windows 10/11, Python 3.12, a dedicated QQ test account, your own DeepSeek API key, and an independent [NapCat installation](https://napneko.github.io/). Model weights, CUDA runtimes, Codex, and Clash are external optional dependencies and are not redistributed.
+| Capability | Implementation and limits |
+| --- | --- |
+| Private and group chat | NapCat / OneBot v11; account binding, deduplication and batching; explicitly enabled groups normally respond only to mentions or replies |
+| Contacts and roles | QQ number is the identity key; nicknames and custom names affect display only |
+| Persona and memory | Local character card, positive examples, current context, evidence-backed preferences and task state; feedback and version recovery |
+| Reactions and endings | Contextual image meaning, separate text/sticker bubbles, and a distinction between conversation endings and task confirmations |
+| Images, videos and group files | Controlled working copies, large-image resizing, bounded video sampling and separately budgeted animation decoding |
+| Voice input | Optional local SenseVoice int8 CPU transcription in the same sender/conversation scope; voice input does not force a voice reply |
+| Speech and singing | Optional speech models, score-driven singing, pitch stabilization and conversion; requires permitted models, runtimes and references |
+| Drawing and photo editing | Your Codex account; source-image ownership, main edit, lower-cost review, bounded repair and inspection of actual candidates |
+| Public research | Public HTTPS checks, bounded responses, source links and partial results; normally summarized with Luna |
+| Bilibili extension | Separate login, actual subtitle reads and sharing; administrator-only, with separate public-action settings and confirmation for comments/coins |
+| Proactive chat | DeepSeek chooses whether to speak and what to discuss; current information and completed reading activities can supply topics, subject to timing and no-follow-up rules |
+| Controlled workbench | Create or resume named work chats in the bound project, record actual status and recoverable archives; the model cannot expand permissions |
+| Usage and maintenance | Official balances, reported tokens and task/financial events; update notices, owner-click upgrades, backups and failed-start rollback |
+
+WeChat, Qzone publishing and proactive friend requests are not exposed as stable capabilities. Cancelled phone-information collection and desktop-pet experiments are excluded. Reading subtitles is not equivalent to watching all video frames and audio.
+
+The wizard inventories all implemented capability families and reports missing dependencies. The [configuration index](docs/CONFIGURATION.md) maps 20 feature families to settings and dependencies. CPU, RAM, GPU and free VRAM determine **daily-use priority / balanced / quality priority** presets. Modules and resource budgets can be chosen manually. Selecting a module records a configuration plan; it does not pretend missing models or accounts were installed.
+
+Speech, singing synthesis and conversion have separate GPU soft budgets. Local learning is optional and yields resources under load. Workers run on demand and audio caches have limits. Hardware presets cannot raise account permissions or change cloud service speed.
+
+## Models, permissions and concurrency
+
+Foreground conversation uses your DeepSeek API. These limits describe **Codex work chats**, not the name of the underlying image engine.
+
+| Role | Work model ceiling | Active work chats | Public research limits |
+| --- | --- | --- | --- |
+| Regular | Luna | Up to 3 per user | 2 accepted questions per rolling 15 minutes; 5 minutes per question, including queue time |
+| Plus | Luna for general work; available 5.6 Terra or lower for photo editing | Up to 3 per user | Exempt from those two research limits; shared queues and resource limits still apply |
+| Administrator | Up to 6.1 Sol / high for general work; xhigh permitted for the main image-edit stage | Up to 6 | Manages locally permitted tools and roles |
+
+All work uses standard service speed: no fast, ultrafast or 1.5× mode. Plus is an administrator-assigned application role, not QQ membership, and grants no computer-file or account-control access. Heavy work is queued; multiple retained work chats do not run multiple models simultaneously. Private memory stays out of group replies. An absent image-engine receipt does not justify guessing its model name.
+
+## Bring your models and assets
+
+- **Codex drawing, edits and workbench:** Sign in to your official client and bind a real project ID/path. A mismatch stops work instead of creating an unbound chat.
+- **Voice input:** Supply a SenseVoice int8 environment and model; the default worker uses bounded CPU processing.
+- **Speech and singing:** Supply permitted models, environments, references and scores. A song title alone does not guarantee an available complete song; speech or humming is not reported as successful singing of it.
+- **Stickers:** The shipped catalog is empty. Import material under its original terms; private chat images are not public assets.
+- **Dedicated emulator:** Reading supported mobile apps requires your own separate environment and login. Daily-phone information is not collected.
+
+See [credits and asset policy](ATTRIBUTIONS.md) and [advanced setup](docs/SETUP.md). The original personal launcher remains available for an already configured Clash → Google HTTPS check → ChatGPT → services flow, separate from the basic installer.
+
+## Updates and data
+
+The application periodically checks this repository's official releases and shows a local notice. **An owner click is required to install.** Updates verify the archive and per-file manifest, wait for active work, back up private configuration and consistent SQLite snapshots, check startup/account binding and roll back on failure. Changes to the main Python or QQ runtime currently require a full-installer component update rather than replacing running QQ binaries.
+
+Release archives contain no author login state. Configuration, databases and backups stay local; cloud inference sends the required text, media or tool results to the selected provider. Local storage does not mean offline inference. Read [PRIVACY.md](PRIVACY.md).
+
+Work chats may write only inside their dedicated task directory. Explicitly requested external material is filtered into read-only snapshots; source files and running databases are not made writable. Known credential files and directory links are excluded. Keep local control pages off the public internet.
+
+## Development and validation
+
+Source development supports Python 3.12 / 3.13. The Windows installer pins Python 3.13:
 
 ```powershell
 git clone https://github.com/LONG10222/whale-companion.git
 cd whale-companion
-py -3.12 -m venv .venv
+py -3.13 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe scripts/configure.py
-```
-
-The interactive setup asks for your administrator and bot QQ numbers, generates fresh local credentials, and hides API-key input. Generated `*.local.json` files are ignored by Git. Existing local settings are never overwritten. **Replies start paused; groups and voice are disabled.**
-
-Copy `configs/qq-client.example.json` to `configs/qq-client.local.json` and enter your own NapCat installation and boot paths. Configure its loopback WebSocket listener at `127.0.0.1:3001` with the same `onebot_token` generated in `qq.local.json`; use loopback WebUI port `6099`.
-
-```powershell
-.\.venv\Scripts\python.exe -m uvicorn phone_server:app --host 127.0.0.1 --port 18766 --no-access-log
-```
-
-Open <http://127.0.0.1:18766/qq>. A constrained same-origin loopback session connects the local UI automatically, without asking you to paste the service token. QR refresh preserves scanned/initializing/reconnecting states. Complete phone confirmation and required security verification yourself, then enable only the configured test contact.
-
-### One-click desktop shortcut
-
-After individual services work, review `configs/launcher.local.json`, then install the shortcut:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-shortcut.ps1
-```
-
-The launcher starts or reuses Clash, requires a valid Google HTTPS `generate_204` response, starts or reuses ChatGPT, and then checks/starts local services. It stops if networking fails or another program occupies a service port. It does not change proxy nodes, subscriptions, or system settings. The execution-policy option applies to this process only.
-
-```powershell
-# Inspect readiness without starting missing applications
-powershell -NoProfile -ExecutionPolicy Bypass -File launch-whale.ps1 -CheckOnly -NoGui
-```
-
-## Optional integrations
-
-- **Codex:** Sign in using the official local CLI. Configure an existing project ID/path using `configs/qq-workbench.example.json`. Only a task's own workspace is writable; outside reads require explicit current-request permission. Regular/Plus users use Luna, administrator ceiling is 6.1 Sol/high, and every run uses standard speed.
-- **Audio:** Install upstream runtimes and obtain permitted model weights/reference audio yourself. Read [setup](docs/SETUP.md) and [credits](ATTRIBUTIONS.md). Missing models cause a clear failure rather than a fake output.
-- **Stickers:** The shipped catalog is empty. [Source provenance](docs/asset-sources.csv) records origins, not redistribution permission. Obtain material under its own terms and import it with `scripts/import_stickers.py`.
-- **Phone reading:** Requires a separate Android emulator and ADB/UIAutomator configuration. The adapter is restricted to supported read-only flows.
-
-## Budgets, privacy, and verification
-
-A user question counts once, regardless of internal page reads. The regular-user budget is two accepted queries in any rolling 15-minute window, keyed by QQ number across conversations and preserved across restarts. The five-minute deadline includes queue time and terminates the owned worker tree. Existing source material is returned as a grounded summary or clearly attributed partial excerpts; missing evidence produces an honest short reply. Manual Plus exempts only these query limits, not computer permissions or model restrictions.
-
-Heavy jobs run one at a time with three pending slots; a regular/Plus user can hold one outstanding job. Group messaging remains disabled. Token counts and balance net changes are not converted into guessed costs. Original chat and memory remain local, but material needed for cloud inference is sent to the selected provider. See [privacy](PRIVACY.md).
-
-```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests -q
 .\.venv\Scripts\python.exe scripts/scan_public.py
 ```
 
-Tests cover source identity, deduplication, scoped memory, permissions, quotas, worker termination, ledger integrity, local-session isolation, and QR states. They do not certify human-like behavior, emotional quality, or universal QQ compatibility. Please submit small reproducible issues without credentials, chat history, account numbers, or private filesystem paths.
+`requirements-bootstrap.lock` pins Windows x64 / CPython 3.13 wheels and hashes. `scripts/build-release.py --output <directory-outside-checkout>` builds a source installation archive without uploading or pushing. CI runs regression and privacy checks. Passing tests does not certify every account, platform version, voice model or aesthetic outcome.
 
-## Recent reliability and login updates
+Please remove accounts, keys, cookies, private chats and personal paths from reproductions. See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) and [architecture](docs/ARCHITECTURE.md).
 
-- QQ voice messages can be decoded through OneBot and transcribed by a bounded local SenseVoice int8 CPU worker. Copy `configs/qq-voice.example.json` to a private local configuration and install `requirements-qq-voice.txt`; model files are not included.
-- Long-term notes reference actual user messages. Legacy free-form summaries remain available locally but are not injected as current truth. Quoted-message relationships, current task state and character-style examples are separate inputs.
-- Task model/reasoning questions read actual job records. Two explicitly requested drawing models run sequentially in one bounded comparison job, with labelled outputs and partial-failure reporting. Ordinary users remain restricted to Luna and every Codex turn uses standard speed.
-- Sticker selection considers captions and embedded text in the current conversation. Partial sends retain only bubbles with real QQ receipts.
-- The local owner can save a bot credential encrypted with Windows DPAPI, restore a saved session, continue required CAPTCHA/device verification and switch between bot accounts. Rejected authentication stops automatic retries. See [QQ login](docs/QQ_LOGIN.md).
+## License and credits
 
-The public snapshot contains no instance credentials, account identifiers, databases, login screenshots, downloaded artwork or model weights. Automated checks verify program behavior; optional models and real QQ authentication still depend on the operator's environment.
-
-## License and acknowledgements
-
-Application code is [GPL-3.0](LICENSE). External programs, models, character voices, artwork, and brands retain their own rights. They are not automatically covered by this repository's license. See [ATTRIBUTIONS.md](ATTRIBUTIONS.md) for sources and omitted assets. This project is not affiliated with or endorsed by DeepSeek, OpenAI, Tencent, or Wuthering Waves.
-
-Import a locally obtained, permitted collection:
-
-```powershell
-.\.venv\Scripts\python.exe scripts/import_stickers.py C:/PublicStickers --source chinesebqb --pack "My permitted collection"
-```
-
-Unlabeled images are not automatically selected. Use `--emotion` only when the label is supported by the collection.
+Application code is [GPL-3.0](LICENSE). Third-party programs, models, voices, stickers, characters and artwork keep their own terms. A source link is not redistribution permission. This project is not affiliated with or endorsed by DeepSeek, OpenAI, Tencent, Bilibili or Wuthering Waves.

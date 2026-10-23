@@ -15,22 +15,22 @@ from proactive_routes import register_proactive_routes
 class ProactiveTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name);self.now=datetime(2026,10,21,10,tzinfo=ZONE).timestamp()
+        self.wall_clock=patch('qq_chat.time.time',side_effect=lambda:self.now);self.wall_clock.start();self.addCleanup(self.wall_clock.stop)
         self.peer='87654321';self.bot='12345678';self.persona=PersonaStore(self.root);self.persona.save(dania_card())
         self.memory=ChatMemory(self.root/'data/qq',self.persona)
         with patch('qq_chat.time.time',return_value=self.now-10800):
             self.memory.add(self.peer,'user','今天想玩鸣潮，跑一跑地图。');self.memory.add(self.peer,'assistant','慢慢逛也挺好。')
         self.chat=SimpleNamespace(memory=self.memory,persona=self.persona)
-        self.bridge=QQBridge(self.root,self.chat);self.bridge.cfg.update(locked_bot_id=self.bot,test_contact={'name':'owner','user_id':self.peer})
+        self.bridge=QQBridge(self.root,self.chat);self.bridge.cfg.update(locked_bot_id=self.bot,test_contact={'name':'long','user_id':self.peer})
         self.bridge.configure(True,self.bot,[self.peer],True);self.bridge.connected=True;self.bridge.login_id=self.bot;self.bridge.epoch='test'
         self.sent=[];self.calls=[]
         self.bridge.call=lambda action,params=None,**kwargs:self.sent.append((action,params)) or {'message_id':42}
         def model(messages,tools):
             self.calls.append(messages)
             return {'content':json.dumps({'should_contact':True,'topic':'鸣潮探索','message':'鸣潮那张地图，逛着逛着是不是又走偏了？','reason':'接着之前聊过的探索话题。','source_ids':[1]})},{}
-        self.service=ProactiveChat(self.root,self.bridge,model,lambda:self.now);self.bridge.proactive=self.service
-        self.message_clock=patch('qq_chat.time.time',side_effect=lambda:self.now);self.message_clock.start()
+        topics=SimpleNamespace(collect=lambda:{'items':[],'feeds':[]},snapshot=lambda:{'cached_today_items':0,'feeds':[]})
+        self.service=ProactiveChat(self.root,self.bridge,model,lambda:self.now,topics=topics);self.bridge.proactive=self.service
     def tearDown(self):
-        self.message_clock.stop()
         self.service.close();self.bridge.pool.shutdown(wait=True);self.tmp.cleanup()
     def draft(self):return self.service.generate(manual=True)
     def inbound(self,text='你好',mid=10,**overrides):

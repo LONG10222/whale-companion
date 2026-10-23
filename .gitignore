@@ -16,6 +16,8 @@ cache/
 workspace/
 models/
 .venv/
+.runtime/
+.installer-cache/
 .autonomy-runtime/
 robot-instance/
 integrations/

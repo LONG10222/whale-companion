@@ -6,7 +6,7 @@ import deepseek_client
 from life_memory import LifeMemory,ZONE,clean_json,terms
 from conversation_tools import definition,public_query
 
-DEFAULT={'enabled':True,'learning':True,'autonomy':True,'web':True,'phone':True,'interval_minutes':30,'daily_activities':2,
+DEFAULT={'enabled':True,'learning':True,'autonomy':False,'web':True,'phone':False,'interval_minutes':30,'daily_activities':2,
     'topics':['鸣潮 达妮娅','DeepSeek 智能体']}
 WEB_TOOLS=[
     definition('search_web','搜索本轮公开话题，返回真实链接。',{'query':{'type':'string','maxLength':100}},['query']),
@@ -138,8 +138,14 @@ topic要短且稳定，同一件事更新时使用相同主题，例如“结尾
                         if not page or finding['quote'] not in page['text']:raise ValueError('发现缺少实际已读页面的逐字依据。')
                         sources.append({'url':finding['url'],'quote':finding['quote'],'provider':page.get('provider','web')});summaries.append(finding['summary'])
                     eid=self.memory.add_episode(who,jid,query,'\n'.join(summaries),sources)
+                    learned=0
+                    if re.search('热梗|流行语|网络梗|学.{0,8}梗',query) and time.monotonic()-started<130:
+                        try:
+                            from jargon_store import JargonStore
+                            learned=JargonStore(self.root).learn_public(who,query,[{'url':url,'text':page['text']} for url,page in pages.items()])
+                        except Exception:pass  # Optional learning never discards completed reading.
                     self.finish(jid,'completed','已阅读公开网页并保存真实来源。',query)
-                    return {'completed':True,'episode_id':eid,'sources':sources,'sent_to_qq':False}
+                    return {'completed':True,'episode_id':eid,'sources':sources,'slang_references':learned,'sent_to_qq':False}
             except Exception as exc:result={'ok':False,'error':str(exc)[:160]}
             messages.append({'role':'tool','tool_call_id':call['id'],'content':json.dumps(result,ensure_ascii=False)})
         raise ValueError('本轮未取得带来源的完整阅读结果。')
@@ -205,7 +211,7 @@ topic要短且稳定，同一件事更新时使用相同主题，例如“结尾
     def state(self):
         who=self.scope();cfg=self.config();notes=self.memory.list_notes(who)
         with self.memory.db() as db:jobs=[dict(r) for r in db.execute('SELECT id,kind,at,state,query,detail FROM jobs WHERE peer=? ORDER BY at DESC LIMIT 18',(who,))]
-        return {'contact':'owner','config':cfg,'busy':self.gate.locked(),'service_running':bool(self.thread and self.thread.is_alive()),'last_error':self.last_error,
+        return {'contact':'long','config':cfg,'busy':self.gate.locked(),'service_running':bool(self.thread and self.thread.is_alive()),'last_error':self.last_error,
             'memories':notes,'activities':self.memory.activities(who,limit=12),'jobs':jobs,'stats':{'active':sum(r['status']=='active' and (not r['expires'] or r['expires']>self.clock()) for r in notes),'pending':sum(r['status']=='pending' for r in notes)},
             'automatic_send':False,'mcp_installed':(self.root/'.autonomy-runtime/Scripts/python.exe').exists(),'window':'09:00–22:00（北京时间）'}
     def start(self):

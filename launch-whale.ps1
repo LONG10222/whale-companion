@@ -1,4 +1,4 @@
-﻿param([switch]$CheckOnly,[switch]$NoOpen,[switch]$NoGui,[switch]$LoadFunctionsOnly)
+param([switch]$CheckOnly,[switch]$NoOpen,[switch]$NoGui,[switch]$LoadFunctionsOnly)
 $ErrorActionPreference='Stop'
 $script:TaskRoot=$PSScriptRoot
 $script:LauncherSteps=New-Object System.Collections.Generic.List[object]
@@ -40,6 +40,18 @@ function Test-LocalService([int]$Port,[string]$Token){
     }catch{}
     return 'occupied'
 }
+function Test-RuntimeReady {
+    try{
+        foreach($taskName in @('host-status.json','status.json')){
+            $taskStatus=Get-Content -LiteralPath (Join-Path $script:TaskRoot ('logs/runtime/'+$taskName)) -Raw -Encoding UTF8 | ConvertFrom-Json
+            if($taskStatus.state-ne'running'){return $false}
+            $taskAt=if($taskStatus.checked_at-is[DateTime]){$taskStatus.checked_at.ToUniversalTime()}else{[DateTimeOffset]::Parse([string]$taskStatus.checked_at,[Globalization.CultureInfo]::InvariantCulture).UtcDateTime}
+            if(([DateTime]::UtcNow-$taskAt).TotalSeconds-gt20){return $false}
+            if(-not(Get-Process -Id $taskStatus.pid -ErrorAction SilentlyContinue)){return $false}
+        }
+        return $true
+    }catch{return $false}
+}
 function Invoke-WhaleStartup($Config){
     $taskClash=@(Get-RunningClash $Config.clash_exe)
     if($taskClash.Count){Add-LaunchStep 'Clash' 'skipped' '已运行，跳过启动。'}
@@ -76,12 +88,24 @@ function Invoke-WhaleStartup($Config){
         elseif($CheckOnly){throw ('本地服务'+$taskPort+'未运行。')}
         else{Add-LaunchStep ('本地服务 '+$taskPort) 'pending' '准备启动。'}
     }
-    if(-not$CheckOnly){& (Join-Path $script:TaskRoot 'start-qq.ps1') | Out-Null}
+    if(-not$CheckOnly){
+        & (Join-Path $script:TaskRoot 'start-qq.ps1') | Out-Null
+        Add-LaunchStep '后台维护' 'pending' '已交给Windows独立运行，正在核对后台心跳。'
+    }
     foreach($taskPort in @(18765,18766)){
         $taskReady=$false
         for($taskTry=0;$taskTry-lt45;$taskTry++){if((Test-LocalService $taskPort $taskSettings.api_token)-eq'running'){$taskReady=$true;break};Start-Sleep -Milliseconds 500;if($script:StatusList){[Windows.Forms.Application]::DoEvents()}}
         if(-not$taskReady){throw ('本地服务'+$taskPort+'未就绪，请查看本机启动日志。')}
     }
+    $taskRuntimeReady=$false
+    for($taskTry=0;$taskTry-lt40;$taskTry++){
+        if(Test-RuntimeReady){$taskRuntimeReady=$true;break}
+        if($CheckOnly){break}
+        Start-Sleep -Milliseconds 500
+        if($script:StatusList){[Windows.Forms.Application]::DoEvents()}
+    }
+    if(-not$taskRuntimeReady){throw '网页服务仍可使用，但后台维护未就绪或已进入故障等待；请查看本机 logs/runtime 记录。'}
+    Add-LaunchStep '后台维护' 'ready' '独立后台心跳正常；关闭此窗口不影响后台。'
     Add-LaunchStep '机器人' 'ready' '本地程序已就绪，QQ会自动恢复连接；必要时在页面扫码。'
     if(-not$NoOpen -and -not$CheckOnly){Start-Process -FilePath 'explorer.exe' -ArgumentList $Config.control_url -WindowStyle Hidden}
 }

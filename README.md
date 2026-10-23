@@ -2,122 +2,108 @@
 
 # Whale Companion · 鲸娅
 
-**让 QQ 里的 AI 能记事、接梗和使用工具，同时把权限、用量和本机资源管住。**
+**一个在本机管理记忆、权限和工具的 QQ AI 伙伴。**
 
-[English](README.en.md) · [快速开始](#快速开始) · [实现原理](docs/ARCHITECTURE.md) · [构建过程](docs/BUILD_LOG.md) · [素材与依赖来源](ATTRIBUTIONS.md)
+[English](README.en.md) · [一键安装](docs/ONE_CLICK_SETUP.md) · [实现原理](docs/ARCHITECTURE.md) · [素材来源](ATTRIBUTIONS.md) · [隐私](PRIVACY.md)
 
-![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
-![Platform](https://img.shields.io/badge/Platform-Windows-0078D4)
+![Windows](https://img.shields.io/badge/Windows-10%2F11_x64-0078D4)
+![Python](https://img.shields.io/badge/Bootstrap-Python_3.13-3776AB)
 ![License](https://img.shields.io/badge/License-GPL--3.0-blue)
 
 </div>
 
-Whale Companion 是一个 Windows 优先的本地 QQ AI 伙伴原型。DeepSeek 负责对话和工具选择；SQLite 保存按联系人隔离的记忆、反馈与任务状态；可选的 Codex Luna、语音和歌声模型负责公开资料整理、绘图及声音生成。
+DeepSeek 负责对话与工具选择，SQLite 保存按 QQ 身份与会话隔离的记忆和任务。本机程序连接独立 QQ 客户端，管理表情、图片、语音、网页查询和可选的 Codex 绘图工作。
 
-这个仓库公开应用源码、设计决策和配置模板，**不包含个人实例、账号登录状态、聊天记录、API Key、角色权重或下载的表情图片**。它不训练或修改云端 DeepSeek 的权重，也不保证接入 QQ 的所有客户端功能。
+本仓库公开应用源码、配置模板与实现过程。账号、Key、密码、聊天、联系人、数据库、原图、参考音频、模型权重和下载的表情包保留在使用者自己的电脑上。它不会训练或修改云端 DeepSeek 的权重。
 
-## 能做什么
+> 当前文档对应发布候选版。正式可下载版本、验证范围与已知问题以 [Releases](https://github.com/LONG10222/whale-companion/releases) 为准。只有通过功能验收与隐私检查的版本才发布。
 
-| 能力 | 实现与状态 |
-|---|---|
-| QQ 私聊 | NapCat / OneBot v11，独立机器人账号、好友白名单、消息去重与连续来信合并 |
-| 记忆与人格 | 最近对话、用户原话与消息编号支持的长期信息、独立任务状态、人工反馈；不同联系人隔离 |
-| 图片与表情 | 图片/GIF 抽帧理解、按聊天语境选本地反应图；文字与表情多数分开发送 |
-| 视频 | 有界抽帧 + 云端视觉，可选 CPU 对白识别；不声称完整逐帧看过视频 |
-| 语音与清唱 | QQ 语音输入由本地 CPU 识别；原文朗读、可选乐谱驱动演唱与换声，检查唱词和完整性 |
-| 一键登录与换号 | 优先恢复设备会话，按需用加密保存的密码重登；支持滑块、新设备确认和受控换号 |
-| 公开资料查询 | 受控网页读取 + Codex Luna 整理、真实来源链接、超时保留已有结果 |
-| 权限与用量 | QQ 号作身份主键，管理员/普通/手动 Plus；普通查询滚动 15 分钟 2 次、单次 5 分钟 |
-| 用量与收支日志 | 任务状态、模型 Token、余额快照及净变化；未知费用不当成免费 |
-| 一键启动 | Clash → Google HTTPS 检查 → ChatGPT → 本地服务；运行中的程序跳过 |
+## 先跑起来
 
-**尚未接入：** 微信、群聊的实际发送、主动加好友、空间浏览与发说说。连接器可能提供其中部分接口，接口存在不等于本项目已经开放或验证。主动聊天默认只准备草稿，需主人发送。
+1. 下载正式发行包 `WhaleCompanion-v版本-windows-x64.zip`，完整解压到自己的普通文件夹。
+2. 双击 **Install.cmd**。程序校验并准备便携 Python、独立 QQ 与基础依赖，然后打开本机向导。
+3. 填写自己的 **DeepSeek API Key**，登录专用机器人 QQ，并在手机完成本人确认。
+4. 用日常账号添加机器人为好友，在向导中选中自己的管理账号，确认接通。
 
-## 快速开始
+以后双击桌面的 **Whale Companion** 或目录里的 **Start.cmd**。已运行的服务会复用，端口被另一份程序占用时保留原程序。基础聊天无需预装 Python、Node、Git、Codex、Clash 或本地大模型。
 
-### 1. 准备环境
+初始仅允许已确认的管理账号私聊，群聊默认关闭。扫码、手机确认或 QQ 的安全验证由本人完成。详细步骤和故障处理见 [一键安装与升级](docs/ONE_CLICK_SETUP.md)。
 
-- Windows 10/11、Python 3.12；QQ 使用单独的测试账号。
-- 按 [NapCat 官方文档](https://napneko.github.io/) 安装与配置独立客户端。
-- DeepSeek API Key 由自己在官方平台申请，费用由自己的账号承担。
-- 本地大模型、CUDA、Codex 与 Clash 都是按功能需要配置的外部依赖，不随源码分发。
+## 功能与配置
+
+| 能力 | 实现与边界 |
+| --- | --- |
+| 私聊与群聊 | NapCat / OneBot v11；独立账号、去重、连续来信合并；群聊须授权，通常仅 @ 或回复机器人时回应 |
+| 联系人与权限 | QQ 号为唯一键；昵称与自定义称呼只影响显示，管理员、Plus、普通用户分别限制 |
+| 人格与记忆 | 本地角色卡、正向表达示例、当前对话、长期偏好、任务状态及来源证据；支持反馈与版本恢复 |
+| 表情与收尾 | 按上下文理解图片的聊天含义；文字与表情可分条发送；区分结束对话与任务确认 |
+| 图片、视频与群文件 | 受控工作副本、大图压缩、视频抽帧；动图有累计解码预算和独立处理进程 |
+| 语音输入 | 可选 SenseVoice int8 CPU 转写，进入同一身份与会话；输入语音不强制语音回复 |
+| 语音与清唱 | 可选本地音色、谱面演唱、稳音和换声；需要自己的模型、环境与许可允许的参考素材 |
+| 绘图与修图 | 自己的 Codex 账户；原图归属核对、主修图、较低成本复核、有界返修与实际候选选择 |
+| 公开网页查询 | 公共 HTTPS 地址检查、响应体上限、来源与剩余结果；通常由 Luna 整理 |
+| B站扩展 | 独立登录、实际字幕阅读与分享；管理员权限，公开互动单独设置，评论与投币先确认 |
+| 主动聊天 | 由 DeepSeek 选择是否开口与话题；可参考当天资讯或实际阅读活动，受时段、空闲、频次及未回复规则约束 |
+| 受控工作台 | 新建或继续自己的项目工作对话、命名、任务状态与可恢复归档；工具权限不由模型自行扩大 |
+| 用量与维护 | 官方余额、Token、任务与收支记录；新版提醒、点击升级、备份和启动检查失败回退 |
+
+微信、QQ 空间发布、主动加好友尚未作为本项目的稳定能力开放。已取消的手机信息采集与桌宠不属于发行内容。B站字幕阅读也不等于完整观看视频画面和声音。
+
+安装向导按 CPU、内存、显卡与可用显存给出 **日常使用优先 / 均衡 / 质量优先**，可手动调整资源预算和配置计划。[完整配置索引](docs/CONFIGURATION.md) 列出 20 类功能的入口与依赖。它明确区分“选中准备配置”与“依赖已找到”；没有模型或账户时不冒充可用。
+
+朗读、清唱与换声分别设显存软比例，本地学习有较低优先级和让出资源机制。工作器按需运行，声音缓存有上限。性能预设不提高账户权限，也不改变云端服务速度档位。
+
+## 模型、权限和并发
+
+前台聊天仍由自己的 DeepSeek API 处理。下面的限制指 **Codex 工作对话**，不等于底层绘图引擎的名称。
+
+| 身份 | 工作模型上限 | 活跃工作对话 | 公开查询限制 |
+| --- | --- | --- | --- |
+| 普通 | Luna | 每人最多 3 个 | 滚动 15 分钟 2 次，单次 5 分钟，含排队 |
+| Plus | 一般工作 Luna；修图可用实际可用的 5.6 Terra 及以下 | 每人最多 3 个 | 免除上述两项查询限制；仍有共享资源与队列约束 |
+| 管理员 | 常规工作最高 6.1 Sol / high；修图主阶段可用 xhigh | 最多 6 个 | 可管理本机允许的能力和权限 |
+
+全部使用普通服务速度，不开启 fast、ultrafast 或 1.5 倍档位。Plus 由管理员设置，不是 QQ 付费会员，也不授予电脑文件或账号操作权。普通/Plus 用户的工具范围与管理员不同。
+
+耗时创作与查询有全局队列；可保留多个工作对话不代表同时启动多个模型。群聊不把私聊记忆带入公开回复。模型未披露真实绘图引擎时，程序不猜型号。
+
+## 自己的声音、模型与素材
+
+基础聊天只需要自己的 Key 和机器人 QQ。增强功能按需配置：
+
+- **Codex 绘图、修图和工作台：** 安装并登录自己的官方客户端，绑定真实项目 ID 与目录。项目不匹配就停止，不创建游离工作对话。
+- **语音输入：** 配置自己的 SenseVoice int8 环境与模型。默认使用有界 CPU 工作器。
+- **自然语音与清唱：** 配置许可允许的模型、上游运行环境、参考音频及谱面。仅给歌名不能保证任意歌曲都能完整演唱；普通朗读或哼唱不会被报告成完成指定歌曲。
+- **表情包：** 发行包带空索引，按原作者条款自行导入；不镜像验证码保护合集，不把私聊图片当公共素材。
+- **专用模拟器：** 阅读小黑盒等入口需另配自己的独立环境与登录，不采集日常手机信息。
+
+第三方来源、模型与角色参考、未分发资产及许可见 [ATTRIBUTIONS.md](ATTRIBUTIONS.md)；具体环境见 [SETUP.md](docs/SETUP.md)。
+
+## 更新与数据
+
+程序定期查询本仓库的正式发行版，发现新版后在本地页面提醒，**由使用者点击才升级**。下载校验、逐文件清单、任务收尾、私人配置和数据库备份、启动验证及失败回退构成升级流程。变更 Python / QQ 主运行组件的版本目前采用完整安装包流程，避免直接覆盖正在运行的 QQ 二进制。
+
+公开包不包含作者的登录态。配置、数据与备份留在本机；调用云模型时，本轮需要的文本、图片或工具结果会发给对应服务商，“本地保存”不代表“全部离线”。详见 [PRIVACY.md](PRIVACY.md)。
+
+工作对话只可写专用任务目录。当前明确要求读取的外部资料经筛选后提供只读快照，原文件和运行数据库不交给模型修改；已知凭据文件与目录链接被排除。不要把本地控制页直接暴露到公网。
+
+## 开发和验证
+
+源码开发支持 Python 3.12 / 3.13，Windows 发行版使用锁定的 Python 3.13 环境：
 
 ```powershell
 git clone https://github.com/LONG10222/whale-companion.git
 cd whale-companion
-py -3.12 -m venv .venv
+py -3.13 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe scripts/configure.py
-```
-
-配置程序交互填写管理员和机器人 QQ 号，随机生成本机访问凭据，密钥输入不会回显。生成的 `*.local.json` 被 Git 忽略；重复运行不会覆盖已有个人配置。**默认暂停回复、关闭群聊和语音。**
-
-### 2. 接入自己的 QQ
-
-1. 将 `configs/qq-client.example.json` 复制为 `configs/qq-client.local.json`，填自己的独立 NapCat 安装目录和启动程序。
-2. 在 NapCat 配置本机 WebSocket 服务 `127.0.0.1:3001`，访问凭据与 `qq.local.json` 的 `onebot_token` 一致。WebUI 使用本机 `127.0.0.1:6099`。
-3. 启动本地控制页，按页面提示扫码并在手机确认；先只允许管理员测试账号。
-
-```powershell
-.\.venv\Scripts\python.exe -m uvicorn phone_server:app --host 127.0.0.1 --port 18766 --no-access-log
-```
-
-打开 <http://127.0.0.1:18766/qq>。浏览器通过受限的本机同源会话自动连接，**不用手填本机令牌**。二维码按状态更新；已扫码、初始化或重连期间保持当前流程。手机确认与安全验证由本人完成。
-
-也可以在「一键登录机器人小号」填写账号与密码。勾选保存后，凭据使用当前 Windows 用户的 DPAPI 加密；启动时先尝试设备快速登录，再按需用密码恢复。验证被拒绝后停止自动重试。选择已保存的小号或填写新小号即可进入换号流程，期间暂停回复、保留记忆，并核对新号及管理员好友关系。具体步骤见 [QQ 一键登录](docs/QQ_LOGIN.md)。
-
-### 3. 桌面一键启动
-
-确认上面的单独启动已可用，再编辑生成的 `configs/launcher.local.json`，核对 Clash 和 ChatGPT 应用位置。默认检查 Google `generate_204` 的 HTTPS 204 响应；不能联网就停止后续启动，不修改你的代理节点、订阅或系统设置。
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-shortcut.ps1
-```
-
-桌面快捷方式执行 `launch-whale.ps1`。它复用已有进程，检查服务是否属于本项目；发现端口被其他程序占用会停止。`-ExecutionPolicy Bypass` 只用于这一进程运行本地脚本，不更改系统执行策略。
-
-```powershell
-# 仅检查，不启动任何缺失的应用
-powershell -NoProfile -ExecutionPolicy Bypass -File launch-whale.ps1 -CheckOnly -NoGui
-```
-
-## 可选模块
-
-- **Codex：** 使用本机已登录的官方 Codex CLI；将 `configs/qq-workbench.example.json` 复制为本机配置，填已有项目的真实 ID 和目录。每个任务只可写自己的工作目录，其他资料需要当前明确只读授权。普通用户/Plus 仅 Luna，管理员上限 6.1 Sol/high；全部普通速度。
-- **语音、清唱与换声：** 需要自行获取上游依赖、权重、合法可用的参考音频及配置。见 [模型与素材](ATTRIBUTIONS.md) 和 [安装说明](docs/SETUP.md)。没有这些文件时，声音功能会不可用，代码不会伪造生成成功。
-- **QQ 语音输入：** 安装 `requirements-qq-voice.txt`，将 `configs/qq-voice.example.json` 复制为本地配置，填写 SenseVoice int8 模型与 Python 路径。接收识别不占常驻显存；语音输入本身不强制语音回复。
-- **本地表情：** 仓库只带空索引。来源登记见 [asset-sources.csv](docs/asset-sources.csv)，按来源条款自行获取并使用 `scripts/import_stickers.py` 导入，在本机表情页查看。不要把私聊图片导入公开素材目录。
-- **手机阅读：** 独立安卓模拟器 + ADB/UIAutomator，只读适配需按自身环境配置。见 [实现原理](docs/ARCHITECTURE.md)。
-
-## 权限、超时与隐私
-
-普通用户的一个问题计一次查询，内部读取多个网页不重复扣次数；额度按 QQ 号跨会话累计，重启不清零。5 分钟包括排队时间，超时结束所属查询进程树。有已读来源时返回摘要/来源摘录并保留未核实范围；没有可靠资料就自然说明，不编造、不假装继续后台工作。Plus 只能由本地管理页手动设置，免除这两项查询限制，**不会获得管理员或电脑访问权限**。
-
-耗时任务全局串行，最多再等待三项；普通/Plus 每人同一时间一项。群聊尚未启用，不能把这些队列规则当作已经完成群聊接入的证明。
-
-原始聊天、记忆、媒体缓存和收支日志保存在本机。调用云端模型时，本轮所需的文本、图片或工具结果会发送到相应服务商；“本地保存”不等于“全部离线”。详见 [PRIVACY.md](PRIVACY.md)。
-
-近期改动包括：引用消息优先确定本轮主题、旧的助手能力自述不再当成当前事实、从实际任务记录回答型号与进度、按图中文字选择反应图，以及只记录取得 QQ 回执的消息片段。管理员明确要求时，同一项绘图任务可串行生成两个不同调度模型的对比版本；普通用户仍限 Luna。底层绘图模型未被回执披露时不会猜型号。详细原理与取舍见 [实现原理](docs/ARCHITECTURE.md) 和 [构建过程](docs/BUILD_LOG.md)。
-
-## 测试与贡献
-
-```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests -q
 .\.venv\Scripts\python.exe scripts/scan_public.py
 ```
 
-测试覆盖消息来源与去重、权限、记忆隔离、额度、进程终止、日志、同源自动连接和二维码状态。自动检查能发现错误，不能证明“像真人”、音色好听或所有 QQ 版本兼容。发布前请验证可选依赖和本机服务。
+`requirements-bootstrap.lock` 固定 Windows x64 / CPython 3.13 的 wheel 与校验值。`scripts/build-release.py --output <仓库外目录>` 只生成源码安装包，不上传、不推送。持续集成运行回归和隐私检查；测试通过不保证任意账号、平台版本、语音模型和审美场景都相同。
 
-欢迎提交可复现问题、匿名测试用例和小范围 PR。报告问题前删除 QQ 号、Key、Cookie、代理订阅、聊天文本和本机绝对路径。参见 [CONTRIBUTING.md](CONTRIBUTING.md) 与 [SECURITY.md](SECURITY.md)。
+欢迎提交去除账号、Key、Cookie、私聊与本机路径后的复现。参见 [CONTRIBUTING.md](CONTRIBUTING.md)、[SECURITY.md](SECURITY.md) 和 [实现原理](docs/ARCHITECTURE.md)。
 
-## 致谢与许可
+## 许可和致谢
 
-应用代码采用 [GPL-3.0](LICENSE)。第三方程序、模型、角色、音频、表情和品牌属于各自权利人，并不自动适用本项目许可证。完整来源、所用角色参考和未分发资产说明见 [ATTRIBUTIONS.md](ATTRIBUTIONS.md)。项目与 DeepSeek、OpenAI、腾讯或《鸣潮》官方无隶属或背书关系。
-
-表情导入示例（目录应只包含你有权使用的公开图片）：
-
-```powershell
-.\.venv\Scripts\python.exe scripts/import_stickers.py C:/PublicStickers --source wuwa_user_download --pack "My permitted collection" --theme 鸣潮
-```
-
-默认不自动发送未标注图片；确认情绪标签后可使用 `--emotion` 显式标注。
+应用代码采用 [GPL-3.0](LICENSE)。第三方程序、模型、声线、表情、角色与素材适用各自条款；来源链接不是重新上传许可。项目与 DeepSeek、OpenAI、腾讯、Bilibili 或《鸣潮》官方没有隶属或背书关系。

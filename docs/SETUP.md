@@ -18,6 +18,8 @@ Different synthesis engines may need incompatible Python packages. Keep separate
 
 语音服务器的模板不会自动下载权重。需要配置所选引擎、参考音频及独立环境；没有模型时，关闭语音，文字聊天仍可运行。清唱使用乐谱接口；要复现某一首歌，还需要合法可用的歌词与谱面。
 
+For the optional Qixuan backend, obtain the complete permitted voicebank and its upstream pronunciation workbook. Generate your private map with `python scripts/prepare-phone-map.py --source <your-local-Pronunciation_Tables.xlsx>` and point the local score configuration at `configs/qixuan-phones.local.json`. The release does not redistribute a standalone voicebank dictionary or reference recording.
+
 ## Codex / 受控工作台
 
 Install/sign in through the official client. Create or choose the existing `deepseek娘` project and record its actual project ID/path in `configs/qq-workbench.local.json`. The service never silently creates an identically named replacement project. A missing project binding prevents execution; it is not treated as success.

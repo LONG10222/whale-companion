@@ -17,10 +17,14 @@
  async function automatic(){
   try{
    await connect();const token=document.getElementById('token'),button=document.getElementById('connect');
-   if(token&&button){
+   if(token){
     token.value='';token.hidden=true;const label=token.closest('label')||document.querySelector('label[for="token"]');if(label)label.hidden=true;
     const section=token.closest('section');if(section)for(const detail of section.querySelectorAll('details'))if(detail.querySelector('input[type="file"]'))detail.hidden=true;
-    button.hidden=true;button.click();
+   }
+   if(button){button.hidden=true;button.click()}
+   for(const media of document.querySelectorAll('audio[src],video[src]')){
+    const url=new URL(media.getAttribute('src'),location.href);
+    if(url.origin===location.origin&&/^\/(artifacts|samples)\//.test(url.pathname)&&media.error)media.load();
    }
   }catch(e){const status=document.getElementById('status')||document.getElementById('connection');if(status)status.textContent=e.message}
  }

@@ -105,7 +105,7 @@ class HistoricalTurnTests(unittest.TestCase):
 class ComparisonWorkerTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name);self.chat=QQConversation(self.root,client=lambda *_:({'content':'好'},{}));self.b=QQBridge(self.root,self.chat)
-        self.peer='87654321';self.b.cfg.update(locked_bot_id='12345678',test_contact={'name':'owner','user_id':self.peer});self.b.configure(True,'12345678',[self.peer],False)
+        self.peer='87654321';self.b.cfg.update(locked_bot_id='12345678',test_contact={'name':'long','user_id':self.peer});self.b.configure(True,'12345678',[self.peer],False)
         self.b.connected=True;self.b.login_id='12345678';self.b.epoch='test';self.calls=[]
         def run(jid,task,**kw):
             self.calls.append(kw);folder=self.root/jid;folder.mkdir(exist_ok=True);p=folder/'drawing.png';Image.new('RGB',(12,12),'blue' if len(self.calls)==1 else 'red').save(p)

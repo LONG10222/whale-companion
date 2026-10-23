@@ -53,7 +53,7 @@ def register_learning_routes(app,*,authorize,root):
     def peer():
         cfg=json.loads((root/'qq.local.json').read_text(encoding='utf-8')) if (root/'qq.local.json').exists() else {}
         target=cfg.get('test_contact') or {}
-        if target.get('name')!='owner' or not target.get('user_id'):raise HTTPException(409,'尚未绑定本轮测试联系人long。')
+        if target.get('name')!='long' or not target.get('user_id'):raise HTTPException(409,'尚未绑定本轮测试联系人long。')
         return str(target['user_id'])
     def call(action):
         try:return action()
@@ -78,7 +78,7 @@ def register_learning_routes(app,*,authorize,root):
     @router.get('/state')
     def state():
         who=peer();card=personas.load();items=store.list_items(who,card)
-        return {'contact':'owner','core_label':card.label,'signature':persona_signature(card),'core_changed_by_learning':False,
+        return {'contact':'long','core_label':card.label,'signature':persona_signature(card),'core_changed_by_learning':False,
             'turns':store.recent(who),'items':items,'feedback':store.list_feedback(who),
             'stats':{'pending':sum(r['status']=='pending' for r in items),
                 'effective':sum(r['status']=='approved' and not r['expired'] and (r['kind'] in {'fact','state'} or not r['stale_persona']) for r in items)},

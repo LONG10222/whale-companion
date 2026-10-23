@@ -17,6 +17,7 @@ async def lifespan(app):
     QQ_SERVICE.start()
     QQ_SERVICE.login_manager.start()
     PROACTIVE_SERVICE.start()
+    BILIBILI_SERVICE.start()
     LIFE_SERVICE.start()
     BALANCE_SERVICE.start()
     yield
@@ -26,6 +27,7 @@ async def lifespan(app):
     CREATIVE_SERVICE.close()
     QQ_TASKS.close()
     PROACTIVE_SERVICE.close()
+    BILIBILI_SERVICE.close()
     QQ_SERVICE.close()
     MOBILE_SERVICE.cancel()
     MOBILE_SERVICE.exit.set()
@@ -80,6 +82,9 @@ LEARNING_STORE=register_learning_routes(app,authorize=authorize,root=ROOT)
 from proactive_routes import register_proactive_routes
 PROACTIVE_SERVICE=register_proactive_routes(app,authorize=authorize,root=ROOT,bridge=QQ_SERVICE)
 
+from bilibili_routes import register_bilibili_routes
+BILIBILI_SERVICE=register_bilibili_routes(app,authorize=authorize,root=ROOT,bridge=QQ_SERVICE,proactive=PROACTIVE_SERVICE)
+
 from life_routes import register_life_routes
 LIFE_SERVICE=register_life_routes(app,authorize=authorize,root=ROOT,bridge=QQ_SERVICE,proactive=PROACTIVE_SERVICE)
 
@@ -89,8 +94,16 @@ ACCOUNT_SWITCH=register_account_switch(app,authorize=authorize,root=ROOT,bridge=
 from creative_routes import register_creative_routes
 CREATIVE_SERVICE=register_creative_routes(app,authorize=authorize,root=ROOT,bridge=QQ_SERVICE)
 
+from contacts_routes import register_contacts_routes
+register_contacts_routes(app,root=ROOT,authorize=authorize,bridge=QQ_SERVICE,creative=CREATIVE_SERVICE)
+
 from balance_routes import register_balance_routes
 BALANCE_SERVICE=register_balance_routes(app,authorize=authorize,root=ROOT,bridge=QQ_SERVICE)
+
+from update_routes import register_update_routes
+UPDATE_SERVICE=register_update_routes(app,authorize=authorize,root=ROOT)
+from maintenance_guard import register_maintenance_guard
+register_maintenance_guard(app,ROOT)
 
 if __name__ == '__main__':
     # The standard dev reload applies local adapter corrections without

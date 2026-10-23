@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>鲸娅 · B站浏览</title><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head>
+<body><main>
+<header><div><span class="eyebrow">鲸娅的日常</span><h1>B 站浏览</h1><p>先读字幕，再聊值得分享的内容。</p></div><span class="badge">本机工作台</span></header>
+<div id="connection" class="notice" role="status">正在连接本机程序…</div>
+<div class="columns">
+<section class="card login"><span class="step">01 · 登录 B 站</span><h2 id="login-title">用手机扫一下</h2><p class="muted">打开手机 B 站 App 扫码，并在手机上确认登录。</p>
+<div class="qr-wrap"><img id="qr" alt="B站官方登录二维码" hidden><div id="qr-placeholder">正在准备二维码…</div></div>
+<p id="login-message" class="message" role="status">等待连接…</p><p id="remaining" class="muted small"></p>
+<button id="refresh" class="secondary">刷新二维码</button>
+<details><summary>扫了仍然登不上？</summary><p>请使用 B 站 App 扫描，扫码后还要在手机点确认。二维码到期后可刷新；出现账号或安全验证时，请在 B 站手机端自行完成。</p><p>页面会核对登录是否有效；不会把“已扫码”当成“已登录”。不要把密码、验证码或 Cookie 发到聊天里。</p></details>
+</section>
+<section class="card browse"><span class="step">02 · 开始浏览</span><h2>今天想看点什么？</h2><p class="muted">输入话题，让 DeepSeek 从实际取得的字幕里筛选。</p>
+<label for="keyword">关注话题</label><input id="keyword" maxlength="80" value="DeepSeek 实用教程" placeholder="比如：鸣潮、游戏开发、AI 实用技巧">
+<label for="video">指定一个视频 <span class="muted">（可不填）</span></label><input id="video" maxlength="240" placeholder="BV 号或 bilibili.com 视频链接">
+<div class="actions"><button id="browse">开始读一轮</button><button id="cancel" class="secondary" disabled>停止本轮</button></div>
+<p id="work-message" class="message" role="status">还未开始浏览。</p>
+<div class="limits"><span>每轮最多 5 条候选</span><span>筛选最多 3 条字幕</span><span>每天最多 6 次筛选</span></div>
+<div class="explain"><strong>这一轮会做什么</strong><p>查找公开视频 → 读取首 P 字幕 → DeepSeek 判断 → 生成本地日报。没有字幕就跳过，不会只凭标题说“看过”。</p><p>当前不会发表评论、点赞、关注、发私信，也不会自动把日报发到 QQ。</p></div>
+</section></div>
+<section class="card result"><div class="result-heading"><div><span class="step">03 · 浏览结果</span><h2>这轮读到了什么</h2></div><span id="result-state" class="badge">尚未开始</span></div><div id="results"><p class="muted">完成后会在这里显示视频来源、时长和入选理由。</p></div></section>
+<footer>登录信息由 Windows 当前用户加密保存在本机 · 未启动桌宠 · 不加载常驻语音或视觉模型</footer>
+</main></body></html>

@@ -29,6 +29,10 @@ This is a sanitized engineering account, not a transcript or a dump of a private
 
 ## What the checks establish / 检查能证明什么
 
+The current release candidate adds a separate first-run wizard and verified portable runtimes. A hardware inventory drives resource presets and a full optional-feature catalog; missing models remain pending. Update discovery is automatic, while installation is owner-initiated, task-aware and backed by code/configuration/SQLite recovery. Group routing, independently authorized Bilibili reading and contextual media follow-ups are now separate modules. These are engineering changes, not a claim that all release acceptance gates have passed.
+
+当前候选版补充独立安装向导、可校验的便携环境、硬件推荐、完整功能索引与手动资源配置。升级提醒自动检查，实际升级由本机点击触发；等待任务、私人备份、启动验证与回退分别记录。群路由、单独授权的 B站阅读和媒体续接均独立处理。本文记录实现方式，不以此声明所有发布验收已完成。
+
 Unit and integration checks cover routing, authorization, memory isolation, quota persistence, process termination, source-based results and log integrity. Live checks used the local service and a standard-speed Luna summary of public documentation. No private delivery receipts or recordings are distributed as evidence.
 
 这些检查验证程序行为，不代表每次语音都像真人、角色声线获得权利人许可、QQ接口永久稳定，或所有硬件都能复现同样速度。可选模型、适配器与上游接口会变化，复现时应重新测试。
