@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="same-origin">
+<title>鲸娅 · 社交管理</title>
+<link rel="stylesheet" href="/qq/social/style.css">
+<script src="/qq/social/controller.js" defer></script>
+<script src="/qq/social/app.js" defer></script>
+</head>
+<body><main>
+<nav><a href="/qq">← QQ 接入</a><span>WHALE COMPANION / LOCAL CONTROL</span></nav>
+<header class="hero"><div><p class="eyebrow">鲸娅 · 社交管理</p><h1>每一次互动，<br>都由你确认。</h1><p class="lead">先预览，再决定。空间动态与好友申请始终留在你的掌控中。</p></div>
+<aside class="hero-note"><span class="dot"></span>谨慎开放的能力<p>纯文字空间 · 收到的好友申请</p><small>不支持浏览空间、图片发布或主动添加陌生人。</small></aside></header>
+<section class="connection-panel" aria-labelledby="connectionHeading">
+<div><h2 id="connectionHeading">01 / 连接与权限</h2><p id="connection" role="status">本机未连接</p><p class="muted">机器人 QQ：<strong id="account">尚未核对</strong></p></div>
+<div class="connection-actions"><span id="socialState" class="badge" data-on="false">安全关闭</span><div class="actions"><button id="connectSession" type="button" class="secondary">连接 / 重新核对本机</button><button id="enableSocial" type="button" disabled>启用本次社交管理</button><button id="disableSocial" type="button" class="quiet" disabled>关闭社交</button></div></div>
+<p class="full muted">仅使用本机管理员会话，不需要输入或保存 API 密钥。连接 / 关闭会清除旧预览；重启程序后社交功能会恢复关闭。</p>
+</section>
+<div id="notice" class="notice" role="status" aria-live="polite">连接本机后，先核对机器人账号。</div>
+<div class="workspace">
+<section aria-labelledby="postHeading"><p class="eyebrow">CREATE WITH INTENT</p><h2 id="postHeading">02 / 纯文字空间</h2><p class="muted">填写正文并明确选择受众。点击预览不会发布。</p>
+<form id="postForm">
+<label for="postContent">动态正文</label><textarea id="postContent" rows="7" maxlength="2000" placeholder="写下你希望发布的内容……"></textarea><p id="charCount" class="counter">0 / 2000</p>
+<label for="audience">谁可以看到</label><select id="audience" required><option value="">请选择可见范围（无默认受众）</option value="self">仅自己可见</option><option value="friends">好友可见</option><option value="public">所有人可见 · 公开发布</option></select>
+<button id="preparePost" type="submit" disabled>生成发布预览 →</button>
+</form><p class="muted">目前仅支持文字。不要粘贴密码、验证码或他人的私密信息。</p></section>
+<section aria-labelledby="requestsHeading"><p class="eyebrow">RECEIVED, NOT AUTOMATED</p><h2 id="requestsHeading">03 / 好友申请</h2><p class="muted">只处理实际收到的申请，不搜索或主动添加陌生账号。接受申请不会自动开启对方的 AI 聊天权限。</p>
+<button id="loadRequests" type="button" class="secondary" disabled>读取当前收到的申请</button>
+<div id="requestList"><div class="empty"><span aria-hidden="true">↗</span><p>先连接本机并启用社交管理</p><small>历史或过期申请请在 QQ 中处理。</small></div></div></section>
+</div>
+<section id="review" class="review" hidden aria-labelledby="reviewHeading"><p class="eyebrow">REVIEW BEFORE ACTION</p><h2 id="reviewHeading">04 / 核对这一次操作</h2>
+<dl><dt>执行账号</dt><dd id="reviewAccount"></dd><dt>操作</dt><dd id="reviewKind"></dd><dt>受众 / 申请对象</dt><dd id="reviewTarget"></dd><dt>完整正文 / 备注</dt><dd id="reviewContent" class="verbatim"></dd></dl>
+<p id="countdown" class="countdown"></p><label id="reviewAgreement" class="check"><input id="reviewChecked" type="checkbox"> 我已核对上方账号、完整内容、受众或申请人，确认执行这一次操作。</label>
+<div class="actions"><button id="confirmAction" type="button" disabled>确认并执行一次</button><button id="cancelReview" type="button" class="quiet">取消预览</button></div>
+<p class="muted">编辑内容后必须重新预览；确认到期、账号变化、会话失效均不能沿用旧确认。</p></section>
+<button id="manualCheck" type="button" class="secondary" hidden>我已在 QQ 人工核对，结束本次操作</button>
+<footer><strong>连接器适配 ≠ 真实账号已验证</strong><p>当前账号与 NapCat 版本的实际兼容性仍需独立测试号验收。没有成功回执时，可能已经执行：请到 QQ 人工核对，不要重试。此页面不自动发布、不自动加好友，也不会自动刷新会话后重发操作。</p><small>本机已认证管理员是信任边界，不隔离同机恶意进程。</small></footer>
+</main></body></html>
