@@ -1,0 +1,110 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" agent="Whale documentation" version="24.7.17">
+  <diagram id="02-turn" name="02  私聊消息的端到端处理">
+    <mxGraphModel dx="1280" dy="1100" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1280" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="02  私聊消息的端到端处理" style="text;html=0;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Noto Sans CJK SC;fontSize=27;fontColor=#1e293b;" vertex="1" parent="1">
+          <mxGeometry x="40" y="12" width="1200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="主链路与降级分支 · “受理”不是“完成”，“完成”也不是“已送达”" style="text;html=0;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Noto Sans CJK SC;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
+          <mxGeometry x="40" y="55" width="1200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="edge0" value="" style="exitX=0.5;exitY=1.0;entryX=0.5;entryY=0.0;exitPerimeter=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=13;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="a" target="b">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge1" value="" style="exitX=0.5;exitY=1.0;entryX=0.5;entryY=0.0;exitPerimeter=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=13;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b" target="c">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge2" value="" style="exitX=0.5;exitY=1.0;entryX=0.5;entryY=0.0;exitPerimeter=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=13;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="c" target="d">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge3" value="" style="exitX=0.5;exitY=1.0;entryX=0.5;entryY=0.0;exitPerimeter=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=13;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="d" target="e">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge4" value="" style="exitX=0.5;exitY=1.0;entryX=0.5;entryY=0.0;exitPerimeter=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=13;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="e" target="f">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge5" value="" style="exitX=1.0;exitY=0.49523809523809526;entryX=0.0;entryY=0.49523809523809526;exitPerimeter=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=13;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="a" target="drop">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge6" value="" style="exitX=1.0;exitY=0.49523809523809526;entryX=0.0;entryY=0.4;exitPerimeter=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=13;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b" target="media">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge7" value="" style="exitX=0.5;exitY=1.0;entryX=1.0;entryY=0.47619047619047616;exitPerimeter=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=13;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="media" target="c">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1055" y="450" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge8" value="" style="exitX=0.0;exitY=0.49523809523809526;entryX=0.0;entryY=0.49523809523809526;exitPerimeter=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=13;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="c" target="e">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="30" y="452" />
+              <mxPoint x="30" y="732" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge9" value="" style="exitX=1.0;exitY=0.49523809523809526;entryX=0.0;entryY=0.49523809523809526;exitPerimeter=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=13;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="d" target="err">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge10" value="" style="exitX=1.0;exitY=0.49523809523809526;entryX=0.0;entryY=0.49523809523809526;exitPerimeter=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=13;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="f" target="unknown">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a" value="01  传输身份与事件验收&#10;&#10;启用状态、bot / epoch、私聊好友、白名单、message_id" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#eaf1f8;strokeColor=#6d91b3;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#334155;align=center;verticalAlign=middle;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="120" width="730" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="b" value="02  去重、合并与媒体预处理&#10;&#10;(bot, mid) SQLite claim；同联系人短窗合并；控制消息立即处理" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f8fafc;strokeColor=#c5d0dc;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#334155;align=center;verticalAlign=middle;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="260" width="730" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="c" value="03  会话准备与明确意图分流&#10;&#10;授权回复 / 任务进度 / 余额等专门路径；其他请求装配上下文" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f8fafc;strokeColor=#c5d0dc;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#334155;align=center;verticalAlign=middle;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="400" width="730" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="d" value="04  DeepSeek 完成请求与工具调度&#10;&#10;按配置切换 planning；工具白名单与执行层再次校验" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f8fafc;strokeColor=#c5d0dc;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#334155;align=center;verticalAlign=middle;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="540" width="730" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="e" value="05  输出校验与附件分包&#10;&#10;核对来源链接、真实完成状态；按语境组织文字、图片或音频" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f8fafc;strokeColor=#c5d0dc;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#334155;align=center;verticalAlign=middle;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="680" width="730" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="f" value="06  QQ 回执确认后记入历史&#10;&#10;每包重验 scope；仅记录 message_id 确认的助手片段" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#eaf1f8;strokeColor=#6d91b3;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#334155;align=center;verticalAlign=middle;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="820" width="730" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="drop" value="不合格事件不进入会话&#10;&#10;避免错误账号 / 范围 / 重复处理" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f9f6ee;strokeColor=#c5d0dc;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#334155;align=center;verticalAlign=middle;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="890" y="120" width="330" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="media" value="媒体处理或降级&#10;&#10;语音：CPU ASR 子进程&#10;图片 / 视频：视觉与有界抽帧&#10;失败如实说明，不编造内容" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f8fafc;strokeColor=#c5d0dc;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#334155;align=center;verticalAlign=middle;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="890" y="260" width="330" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="err" value="API / 网络失败&#10;&#10;401 / 402 / 429 / 超时&#10;返回明确失败，记录用量事件" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f9f6ee;strokeColor=#c5d0dc;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#334155;align=center;verticalAlign=middle;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="890" y="540" width="330" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="unknown" value="回执缺失或结果不确定&#10;&#10;不自动重发&#10;不把未确认片段记为已送达" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f9f6ee;strokeColor=#c5d0dc;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#334155;align=center;verticalAlign=middle;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="890" y="820" width="330" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="note" value="分支语义&#10;&#10;语音输入不自动要求语音输出；后台创作的受理与送达详见图 04。" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#fff;strokeColor=#c5d0dc;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#334155;align=center;verticalAlign=middle;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="990" width="1160" height="65" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

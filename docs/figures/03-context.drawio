@@ -1,0 +1,81 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" agent="Whale documentation" version="24.7.17">
+  <diagram id="03-context" name="03  人格、记忆与本轮上下文">
+    <mxGraphModel dx="1280" dy="980" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1280" pageHeight="980" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="03  人格、记忆与本轮上下文" style="text;html=0;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Noto Sans CJK SC;fontSize=27;fontColor=#1e293b;" vertex="1" parent="1">
+          <mxGeometry x="40" y="12" width="1200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="检索与提示组装，而非模型训练；角色资料、网页和引文不能授予执行权限" style="text;html=0;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Noto Sans CJK SC;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
+          <mxGeometry x="40" y="55" width="1200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="edge0" value="" style="exitX=0.5;exitY=1.0;entryX=0.25;entryY=0.0;exitPerimeter=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=13;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="p" target="pack">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="220" y="350" />
+              <mxPoint x="510" y="350" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge1" value="" style="exitX=0.5;exitY=1.0;entryX=0.5;entryY=0.0;exitPerimeter=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=13;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="m" target="pack">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge2" value="" style="exitX=0.5;exitY=1.0;entryX=0.75;entryY=0.0;exitPerimeter=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=13;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="t" target="pack">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1060" y="350" />
+              <mxPoint x="770" y="350" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge3" value="" style="exitX=0.5;exitY=1.0;entryX=0.5;entryY=0.0;exitPerimeter=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=13;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="pack" target="model">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge4" value="" style="exitX=0.2692307692307692;exitY=1.0;entryX=0.5;entryY=0.0;exitPerimeter=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=13;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="model" target="feedback">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="520" y="750" />
+              <mxPoint x="305" y="750" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge5" value="" style="exitX=0.0;exitY=0.48;entryX=0.5;entryY=0.0;exitPerimeter=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=13;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="feedback" target="m">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="20" y="855" />
+              <mxPoint x="20" y="100" />
+              <mxPoint x="640" y="100" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="p" value="人格资料 PersonaStore&#10;&#10;核心规则 + 角色 JSON&#10;最多 8 条风格示例（非真实历史）&#10;关键词 / 常驻 lore，最多 2400 字符&#10;损坏配置沿用最近有效版本" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f8fafc;strokeColor=#c5d0dc;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#334155;align=center;verticalAlign=middle;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="130" width="360" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="m" value="同联系人记忆 ChatMemory&#10;&#10;最近 24 条消息&#10;原话及消息 ID 支撑的长期信息&#10;已认可学习 / LifeMemory&#10;引用关系与联系人隔离" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f8fafc;strokeColor=#c5d0dc;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#334155;align=center;verticalAlign=middle;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="460" y="130" width="360" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="t" value="本轮输入与真实状态&#10;&#10;当前用户原话 / 同私聊引用&#10;视觉 / ASR 内容资料&#10;任务记录 / 角色能力 / 工具清单&#10;聊天节奏与当前意图" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f8fafc;strokeColor=#c5d0dc;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#334155;align=center;verticalAlign=middle;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="880" y="130" width="360" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="pack" value="QQConversation.prepare → pack_messages&#10;&#10;按本轮请求组装消息&#10;资料只影响内容，不替代权限校验" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#eaf1f8;strokeColor=#6d91b3;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#334155;align=center;verticalAlign=middle;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="380" y="390" width="520" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="model" value="DeepSeek 推理与受控工具选择&#10;&#10;发送所需上下文；不修改云端模型权重" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#eaf1f8;strokeColor=#6d91b3;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#334155;align=center;verticalAlign=middle;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="380" y="600" width="520" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="feedback" value="可追溯反馈与后续使用&#10;&#10;人工认可的反馈形成可用学习资料&#10;回执确认的回复进入同联系人历史" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f8fafc;strokeColor=#c5d0dc;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#334155;align=center;verticalAlign=middle;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="795" width="530" height="125" as="geometry" />
+        </mxCell>
+        <mxCell id="privacy" value="隐私边界&#10;&#10;原始状态在本机；必要上下文仍会发送云端&#10;“本地保存”不等于“完全离线”" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f9f6ee;strokeColor=#c5d0dc;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#334155;align=center;verticalAlign=middle;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="680" y="795" width="560" height="125" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
