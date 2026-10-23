@@ -78,7 +78,7 @@ def isolated_venv(root):
     try:
         if (root / '.venv').resolve().parent != root.resolve():
             return False
-        cfg = (root / '.venv' / 'pyvenv.cfg').read_text().lower()
+        cfg = (root / '.venv' / 'pyvenv.cfg').read_text(encoding='utf-8').lower()
         values = dict(line.split('=', 1) for line in cfg.splitlines() if '=' in line)
         return {k.strip(): v.strip() for k, v in values.items()}.get('include-system-site-packages') == 'false'
     except (OSError, ValueError):
