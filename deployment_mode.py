@@ -72,7 +72,7 @@ class DeploymentGate:
             return self.phase == 'connected_requested'
 
 
-def register_deployment_mode(app, root, bridge, authorize):
+def register_deployment_mode(app, root, bridge, authorize, sessions):
     gate = DeploymentGate(root, bridge)
     public = {('GET', '/deployment'), ('GET', '/deployment.js'), ('POST', '/local/session'),
               ('GET', '/local/session.js'), ('GET', '/deployment/health'),
@@ -112,8 +112,12 @@ def register_deployment_mode(app, root, bridge, authorize):
 
     def principal(request):
         # Only called after authorization; never retain the raw session/token.
-        value = request.cookies.get('whale_local_session') or request.headers.get('authorization', '')
-        return hashlib.sha256(value.encode()).hexdigest()
+        bearer = request.headers.get('authorization', '')
+        if secrets.compare_digest(bearer, 'Bearer ' + sessions.api_token):
+            return 'bearer:' + hashlib.sha256(bearer.encode()).hexdigest()
+        value = request.cookies.get('whale_local_session', '')
+        # authorize already checked this cookie, same-origin and CSRF marker.
+        return 'session:' + hashlib.sha256(value.encode()).hexdigest()
 
     @app.post('/deployment/prepare', dependencies=[Depends(authorize)])
     def prepare(request: Request):

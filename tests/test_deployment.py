@@ -2,6 +2,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 import json
+import shutil
+import subprocess
 import tempfile
 import threading
 import unittest
@@ -97,6 +99,12 @@ class BootstrapTests(unittest.TestCase):
         self.assertEqual(kw['cwd'],self.root)
 
 
+class DeploymentDOMTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which('node'), 'Node required for DOM mocks')
+    def test_native_fetch_and_confirmation_flow(self):
+        subprocess.run(['node', str(Path(__file__).with_name('deployment_ui_test.js'))], check=True, timeout=30)
+
+
 class GateTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name)
@@ -105,7 +113,7 @@ class GateTests(unittest.TestCase):
         self.bridge=SimpleNamespace(lock=threading.RLock(),cfg={'enabled':True,'bot_id':'123456','allowed_private_ids':['654321']},start=Mock(),login_manager=SimpleNamespace(start=Mock(),switcher=None))
         self.app=FastAPI();sessions=register_local_sessions(self.app,self.root,'unit-test-only')
         def auth(request:Request,authorization:str=Header(default='')):return sessions.authorize(request,authorization)
-        self.gate=register_deployment_mode(self.app,self.root,self.bridge,auth)
+        self.gate=register_deployment_mode(self.app,self.root,self.bridge,auth,sessions)
         @self.app.post('/qq/login/ensure')
         def ensure():return {'unexpected':True}
         self.client=TestClient(self.app,base_url='http://127.0.0.1:18766',client=('127.0.0.1',40000))
@@ -128,6 +136,13 @@ class GateTests(unittest.TestCase):
         self.assertEqual(result.status_code,200);self.assertFalse(self.bridge.cfg['enabled'])
         self.bridge.start.assert_called_once();self.bridge.login_manager.start.assert_called_once()
         self.assertEqual(self.client.post('/deployment/connect',headers=self.headers,json=body).status_code,409)
+        self.bridge.start.assert_called_once()
+    def test_valid_bearer_ignores_unverified_cookie_for_principal(self):
+        headers={'Authorization':'Bearer unit-test-only','Cookie':'whale_local_session=unverified-a'}
+        r=self.client.post('/deployment/prepare',headers=headers);self.assertEqual(r.status_code,200)
+        body={k:r.json()[k] for k in ('nonce','preview')};body['confirmed']=True
+        headers['Cookie']='whale_local_session=unverified-b'
+        self.assertEqual(self.client.post('/deployment/connect',headers=headers,json=body).status_code,200)
         self.bridge.start.assert_called_once()
     def test_new_session_invalidates_previous_nonce(self):
         body=self.body();self.login()

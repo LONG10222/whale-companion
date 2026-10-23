@@ -209,7 +209,7 @@ def handler(root):
                 content, kind = json.dumps(state).encode(), 'application/json'
             elif self.path == '/':
                 text = html.escape(state['configuration'])
-                content = ('''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>鲸娅 · 部署检查</title><body><main><h1>鲸娅 · 本机部署控制台</h1><h2>基础环境已启动，QQ 尚未连接</h2><p>这是安全的部署检查页，不是聊天服务，不会自动登录、调用模型、发送消息或恢复后台任务。</p><p>个人配置：''' + text + '''</p><ol><li>首次安装：回到启动窗口，选择 2 创建本机配置。该步骤会明确询问是否创建访问凭据，不上传或显示凭据。</li><li>按仓库 README 手动安装 NapCat，核对测试账号、访问权限和 API 费用。此工具不会安装或登录 QQ。</li><li>确认配置和现有自动任务后，再按 README 显式启动业务服务。不要把本页就绪当作 QQ 功能已经验证。</li></ol><p>重复双击启动器会复用此页；若端口被其他应用使用，将拒绝启动，不杀进程。</p><p>停止本页：关闭标题为 Whale deployment console 的终端，或在该终端按 Ctrl+C。</p><p>个人配置、记忆和下载素材会保留。更新源码前请自行备份这些本机数据；不要把密钥上传 GitHub。</p></main></body></html>''').encode()
+                content = ('''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>鲸娅 · 部署检查</title><body><main><h1>鲸娅 · 本机部署控制台</h1><h2>基础环境已启动，QQ 尚未连接</h2><p>这是安全的部署检查页，不是聊天服务，不会自动登录、调用模型、发送消息或恢复后台任务。</p><p>个人配置：''' + text + '''</p><ol><li>首次安装：关闭启动窗口并重新双击启动器，选择 2 创建本机配置。该步骤会明确询问是否创建访问凭据，不上传或显示凭据。</li><li>按仓库 README 手动安装 NapCat，核对测试账号、访问权限和 API 费用。此工具不会安装或登录 QQ。</li><li>配置完成后，重新双击启动器选择 1 进入安全管理页。不要把本页就绪当作 QQ 功能已经验证。</li></ol><p>重复双击启动器会复用此页；若端口被其他应用使用，将拒绝启动，不杀进程。</p><p>停止本页：关闭显示 Whale deployment console 提示的终端，或在该终端按 Ctrl+C。</p><p>个人配置、记忆和下载素材会保留。更新源码前请自行备份这些本机数据；不要把密钥上传 GitHub。</p></main></body></html>''').encode()
                 kind = 'text/html; charset=utf-8'
             else:
                 self.send_error(404)

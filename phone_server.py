@@ -103,4 +103,4 @@ if __name__ == '__main__':
 # Safe deployment is opt-in for the new launcher; legacy startup remains unchanged.
 if SAFE_DEPLOYMENT:
     from deployment_mode import register_deployment_mode
-    DEPLOYMENT_GATE = register_deployment_mode(app, ROOT, QQ_SERVICE, authorize)
+    DEPLOYMENT_GATE = register_deployment_mode(app, ROOT, QQ_SERVICE, authorize, LOCAL_SESSIONS)
