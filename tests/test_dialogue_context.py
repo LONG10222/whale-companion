@@ -133,7 +133,7 @@ class ReferenceTests(unittest.TestCase):
             before=original.read_bytes()
             with patch('draw_references.StickerLibrary',Library):references=prepare_references(root,folder,'融合DeepSeek鲸娘和达妮娅')
             self.assertEqual(len(references),2);self.assertEqual(original.read_bytes(),before)
-            for item in references:self.assertTrue(Path(item['path']).is_relative_to(folder));self.assertNotIn('download_token',item['source'])
+            for item in references:self.assertTrue(Path(item['path']).is_relative_to(folder.resolve()));self.assertNotIn('download_token',item['source'])
     def test_private_or_unverified_assets_are_not_used_as_character_references(self):
         from draw_references import prepare_references
         class Library:

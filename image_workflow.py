@@ -273,6 +273,7 @@ identity、requested_changes、artifacts三项必须各给明确检查结果；�
     def candidate(self,output,folder,original_sha,original_size,number,*,plan=None,request='',original_path=None,adjustments=None):
         files=output.get('images',[])
         if not files:raise ValueError('图像工具没有返回真实图片。')
+        folder=Path(folder).resolve()
         path=Path(files[0]).resolve();issues=[]
         if not path.is_relative_to(folder) or not path.is_file() or path.is_symlink():raise ValueError('候选图片不在本任务目录。')
         if path.stat().st_size>10*1024**2:raise ValueError('候选图片超过QQ发送大小，原文件保留在工作台。')

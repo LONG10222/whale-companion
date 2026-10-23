@@ -84,6 +84,17 @@ class WorkflowTests(unittest.TestCase):
         Image.new('RGB',(900,600),'red').save(output['images'][0])
         workflow=ImageWorkflow(self.root,self.worker);result=workflow.candidate(output,self.root,self.source['sha256'],(600,900),1)
         self.assertFalse(result['structural']['passed'])
+    def test_candidate_normalizes_task_directory_before_containment_check(self):
+        alias=self.root/'alias';alias.mkdir()
+        output={'images':[str(self.root/'canonical.png')]}
+        Image.new('RGB',(600,900),'red').save(output['images'][0])
+        result=ImageWorkflow(self.root,self.worker).candidate(output,alias/'..',self.source['sha256'],(600,900),1)
+        self.assertTrue(result['structural']['passed'])
+    def test_normalized_task_directory_still_rejects_external_candidate(self):
+        folder=self.root/'allowed';folder.mkdir()
+        outside=self.root/'outside.png';Image.new('RGB',(600,900),'red').save(outside)
+        with self.assertRaisesRegex(ValueError,'不在本任务目录'):
+            ImageWorkflow(self.root,self.worker).candidate({'images':[str(outside)]},folder,self.source['sha256'],(600,900),1)
     def test_extra_observed_image_call_consumes_remaining_revision_budget(self):
         original=self.worker.run
         def run(*a,**kw):
