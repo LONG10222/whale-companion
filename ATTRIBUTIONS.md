@@ -9,6 +9,7 @@
 | Component | Upstream / 作者来源 | Use here / 用途 | Included? |
 |---|---|---|---|
 | DeepSeek API | [Official docs](https://api-docs.deepseek.com/) | Conversation, vision and search boundary | Application client only |
+| AstrBot 4.29.1 | [AstrBotDevs/AstrBot](https://github.com/AstrBotDevs/AstrBot/tree/v4.29.1), [PyPI](https://pypi.org/project/astrbot/4.29.1/) | Optional ordinary-text native pipeline in an isolated environment; AGPL-3.0-or-later | Upstream license notice and first-party adapter only; no runtime/profile is bundled |
 | NapCatQQ | [NapNeko/NapCatQQ](https://github.com/NapNeko/NapCatQQ) | Dedicated QQ / OneBot v11 transport | No binaries or login state |
 | CPython | [Python Software Foundation](https://www.python.org/downloads/release/python-31317/) | Verified portable Python for the Windows installer | Downloaded from python.org by the user's installer; not vendored |
 | python-qrcode | [lincolnloop/python-qrcode](https://github.com/lincolnloop/python-qrcode) | Encode the QR returned by QQ's required device-confirmation flow | Dependency only; no vendored implementation |
@@ -57,6 +58,8 @@ README organization was informed by [AstrBot](https://github.com/AstrBotDevs/Ast
 Current-turn context and durable memory separation also reference the [LangChain memory documentation](https://docs.langchain.com/oss/python/langchain/short-term-memory). QQ password/CAPTCHA/device-confirmation integration follows the upstream [NapCat login API](https://github.com/NapNeko/NapCatQQ/blob/main/packages/napcat-webui-backend/src/api/QQLogin.ts) and frontend components linked in [QQ_LOGIN.md](docs/QQ_LOGIN.md). Character-reference preparation uses only permitted operator-supplied library entries and retains their original source links; it does not bundle or relicense those images.
 
 License copies in `licenses/` preserve the corresponding upstream notice; they do not change ownership or relicense omitted assets.
+
+The optional AstrBot combination preserves its AGPL-3.0-or-later attribution and network-source provisions alongside this application's GPL-3.0 code. See [LICENSES.md](docs/LICENSES.md) for operator source-offer instructions. This integration does not expose AstrBot's full plugin catalog, QQ adapters, Computer Use or arbitrary host tools.
 
 Bilibili browsing was informed by [c1overzz/dsh-bili-scroll](https://github.com/c1overzz/dsh-bili-scroll) and the public behavior described by its author. The bundled `bili_reader` package is this project's first-party bounded reader implementation, not a copy of that project's agent workspace or login data. No Bilibili cookies, transcripts, reports or account authorization are shipped. The separate dsh-pet / desktop-pet experiment was cancelled; no pet code, animations or artwork are included.
 

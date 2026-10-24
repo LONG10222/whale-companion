@@ -87,6 +87,14 @@ class Upgrade:
             health = response.json()
             return not health.get('audio_busy') and not health.get('learning_running')
 
+    def engine_idle(self):
+        from chat_engine import ChatEngine
+        engine=ChatEngine(self.root)
+        if not engine.owns_listener():
+            return True
+        state=engine.status().get('kernel',{})
+        return state.get('ok') is True and not state.get('busy') and not state.get('pending')
+
     def download(self):
         import httpx
         tag = self.release['tag']
@@ -148,7 +156,9 @@ class Upgrade:
         for process in psutil.process_iter():
             try:
                 args = process.cmdline()
-                if not Path(process.exe()).resolve().is_relative_to(self.root) or Path(process.cwd()).resolve() != self.root:
+                if Path(process.cwd()).resolve() != self.root:
+                    continue
+                if kind != 'astrbot' and not Path(process.exe()).resolve().is_relative_to(self.root):
                     continue
                 if kind == 'api':
                     matches = (any(args[i:i + 3] == ['-m', 'uvicorn', 'phone_server:app']
@@ -157,6 +167,19 @@ class Upgrade:
                 elif kind == 'voice':
                     matches = any(Path(arg).resolve() == self.root / 'voice_server.py'
                                   for arg in args[1:] if not arg.startswith('-'))
+                elif kind == 'astrbot':
+                    from chat_engine import settings as engine_settings
+                    cfg=engine_settings(self.root)
+                    interpreter=Path(cfg['python'])
+                    if not interpreter.is_absolute():interpreter=self.root/interpreter
+                    profile=Path(cfg['profile'])
+                    if not profile.is_absolute():profile=self.root/profile
+                    matches=(Path(process.exe()).name.lower() in {'python.exe','pythonw.exe'}
+                        and args and (Path(args[0]).resolve()==interpreter.resolve() or Path(process.exe()).resolve()==interpreter.resolve())
+                        and any(Path(arg).resolve()==self.root/'astrbot_sidecar.py' for arg in args[1:] if arg.endswith('.py'))
+                        and '--root' in args and Path(args[args.index('--root')+1]).resolve()==self.root
+                        and '--profile' in args and Path(args[args.index('--profile')+1]).resolve()==profile.resolve()
+                        and '--port' in args and args[args.index('--port')+1]==str(cfg['port']))
                 else:
                     matches = any(Path(arg).resolve() == self.root / 'scripts/beginner_setup.py'
                                   for arg in args[1:] if not arg.startswith('-'))
@@ -171,6 +194,7 @@ class Upgrade:
         target = self.backup / 'private'
         files = list(self.root.glob('*.local.json')) + list((self.root / 'configs').glob('*.local.*'))
         files += [self.data / 'python-environment.local.json']
+        files += [self.data / 'astrbot-environment.local.json']
         files += [self.root / '.runtime/dependencies.sha256']
         files += [self.root / 'assets/stickers/catalog.json', self.data / 'browser-session.local.json']
         for source in files:
@@ -211,9 +235,9 @@ class Upgrade:
         self.set_replies(False)
         deadline = time.monotonic() + 300
         while time.monotonic() < deadline:
-            if active_tasks(self.root) == 0 and self.voice_idle():
+            if active_tasks(self.root) == 0 and self.voice_idle() and self.engine_idle():
                 self.status('switching', '已完成当前任务，正在备份数据库并切换程序。')
-                if not self.voice_idle():
+                if not self.voice_idle() or not self.engine_idle():
                     time.sleep(3)
                     continue
                 # Release only this application's idle audio child before its host exits.
@@ -230,6 +254,7 @@ class Upgrade:
                 self.stop_owned('host')
                 self.stop_owned('api')
                 self.stop_owned('voice')
+                self.stop_owned('astrbot')
                 self.stopped = True
                 if active_tasks(self.root) != 0:
                     raise ValueError('停止前仍有任务更新，已中止升级并准备恢复。')
@@ -297,6 +322,7 @@ class Upgrade:
         self.stop_owned('host')
         self.stop_owned('api')
         self.stop_owned('voice')
+        self.stop_owned('astrbot')
         if self.switched:
             for item in reversed(self.changed):
                 path = destination(self.root, item['name'])

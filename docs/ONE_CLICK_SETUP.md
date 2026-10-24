@@ -37,7 +37,7 @@ Upgrades are discovered automatically and installed only after a local owner cli
 
 ## 全部功能与硬件推荐
 
-向导列出文字聊天、人格与记忆、联系人/Plus、表情、识图、视频、群文件大照片、语音输入、自然语音、清唱、Codex 绘图、修图工作流、公开查询、受控电脑工作、主动聊天、本地学习、专用模拟器阅读、余额与日志、升级和 B站等 20 类功能，并分别显示依赖状态。详细入口见 [功能配置索引](CONFIGURATION.md)。旧有功能不会因为安装流程简化就从源码中删掉。
+向导列出文字聊天、人格与记忆、联系人/Plus、表情、识图、视频、群文件大照片、语音输入、自然语音、清唱、Codex 绘图、修图工作流、公开查询、受控电脑工作、主动聊天、本地学习、专用模拟器阅读、余额与日志、升级和 B站和可选 AstrBot 等 21 类功能，并分别显示依赖状态。详细入口见 [功能配置索引](CONFIGURATION.md)。旧有功能不会因为安装流程简化就从源码中删掉。
 
 设置页只读取 CPU 名称与核心数、内存总量/可用量、NVIDIA 显卡名称和显存/占用；不扫描用户文档、不读取手机数据。根据这些信息给出“日常使用优先 / 均衡 / 质量优先”，也可手动选择需要配置的模块、线程数、显存软比例、加载门槛、空闲退出时间和磁盘缓存上限。
 
@@ -81,3 +81,11 @@ The feature catalog preserves every implemented capability family and reports mi
 Python 3.13 / Windows x64 的安装依赖锁在 `requirements-bootstrap.lock` 中；每个二进制 wheel 都有 SHA-256。其他开发环境使用 `requirements.txt`。重新生成依赖锁时，应重新进行干净环境安装和完整回归。
 
 `scripts/build-release.py --output <安装目录外的发行目录>` 仅生成可校验的源码包，不创建 GitHub 仓库、不上传、不自动推送。正式发布还必须完成版本冻结、隐私扫描、素材许可核查、功能验收与 CI。
+
+## 可选混合内核 / Optional hybrid kernel
+
+向导新增“安装可选 AstrBot 内核”。它使用发行版自己的 CPython 3.13 创建独立、带版本的环境，按两份哈希锁安装固定依赖，配置以相对路径写入。首次约下载 130 MiB，安装前要求至少 4 GiB 空闲；不下载本地大模型、不安装第二个 QQ 接收端。安装时保留基础与声音环境，完成后仍是原有对话模式，内核可能待机。基础账号接通后，在 `/qq/engine` 通过健康检查再手动选择混合模式。
+
+缺少 Key、依赖失败或端口被另一实例占用时，保留原有对话入口，并显示实际状态。重复安装复用已验证环境；失败重试创建新的独立环境，最后才切换配置指针。手动外部环境不由此向导接管。高级手动部署可用 Python 3.12+，一键哈希锁专门面向 Windows x64 / CPython 3.13。
+
+The optional button creates an isolated, pinned environment. Installation, healthy startup and selecting hybrid mode are separate steps. It does not overwrite the voice runtime or log into QQ again. See [architecture and limits](ASTRBOT_INTEGRATION.md) and [license/source obligations](LICENSES.md). A fresh-folder installer check is distinct from first-ever QQ authentication on a pristine Windows machine.

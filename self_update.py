@@ -26,7 +26,7 @@ MAX_ARCHIVE = 32 * 1024 * 1024
 MAX_EXPANDED = 128 * 1024 * 1024
 ACTIVE_PHASES = {'preparing', 'waiting_for_tasks', 'switching', 'validating', 'rolling_back'}
 PRIVATE_PARTS = {'.git', '.venv', '.runtime', '.installer-cache', 'data', 'logs', 'cache',
-                 'models', 'workspace', 'robot-instance', 'integrations', '__pycache__'}
+                 'models', 'workspace', 'robot-instance', 'integrations', '__pycache__', 'runtime', 'live-profile'}
 PRIVATE_SUFFIXES = {'.sqlite', '.sqlite3', '.db', '.key', '.pem', '.pfx', '.wav', '.mp3',
                     '.mp4', '.onnx', '.gguf', '.pth', '.pt', '.ckpt', '.safetensors', '.lnk', '.exe', '.dll'}
 
@@ -152,6 +152,9 @@ def validate_archive(archive, stage, expected_version):
 
 def active_tasks(root):
     total = 0
+    from optional_engine_setup import environment_state
+    if environment_state(root)['busy']:
+        total += 1
     for filename, table in [('qq-memory.sqlite3', 'events'), ('creative.sqlite3', 'jobs'),
                             ('tasks.sqlite3', 'tasks'), ('companion-life.sqlite3', 'jobs')]:
         path = Path(root) / 'data/qq' / filename

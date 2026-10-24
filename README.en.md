@@ -16,7 +16,7 @@ DeepSeek handles conversation and tool selection. SQLite stores identity-scoped 
 
 The repository contains application source, configuration templates and design notes. Accounts, keys, passwords, chats, contact databases, photos, reference recordings, model weights and downloaded sticker packs stay on the operator's computer. It does not train the hosted DeepSeek model.
 
-> This documentation describes a release candidate. Available downloads, verified scope and known issues are listed in [Releases](https://github.com/LONG10222/whale-companion/releases). Publication requires functional acceptance and privacy checks.
+> Downloads, verified scope and known issues are listed in [Releases](https://github.com/LONG10222/whale-companion/releases). The main branch may contain work awaiting release checks.
 
 ## Get started
 
@@ -34,6 +34,7 @@ Later, use the desktop **Whale Companion** shortcut or **Start.cmd**. Running se
 | Private and group chat | NapCat / OneBot v11; account binding, deduplication and batching; explicitly enabled groups normally respond only to mentions or replies |
 | Contacts and roles | QQ number is the identity key; nicknames and custom names affect display only |
 | Persona and memory | Local character card, positive examples, current context, evidence-backed preferences and task state; feedback and version recovery |
+| Optional dialogue kernel | AstrBot 4.29.1 in a separate environment handles ordinary text; the existing executor retains QQ delivery, roles, tools, media and durable memory |
 | Reactions and endings | Contextual image meaning, separate text/sticker bubbles, and a distinction between conversation endings and task confirmations |
 | Images, videos and group files | Controlled working copies, large-image resizing, bounded video sampling and separately budgeted animation decoding |
 | Voice input | Optional local SenseVoice int8 CPU transcription in the same sender/conversation scope; voice input does not force a voice reply |
@@ -47,9 +48,11 @@ Later, use the desktop **Whale Companion** shortcut or **Start.cmd**. Running se
 
 WeChat, Qzone publishing and proactive friend requests are not exposed as stable capabilities. Cancelled phone-information collection and desktop-pet experiments are excluded. Reading subtitles is not equivalent to watching all video frames and audio.
 
-The wizard inventories all implemented capability families and reports missing dependencies. The [configuration index](docs/CONFIGURATION.md) maps 20 feature families to settings and dependencies. CPU, RAM, GPU and free VRAM determine **daily-use priority / balanced / quality priority** presets. Modules and resource budgets can be chosen manually. Selecting a module records a configuration plan; it does not pretend missing models or accounts were installed.
+The wizard inventories all implemented capability families and reports missing dependencies. The [configuration index](docs/CONFIGURATION.md) maps 21 feature families to settings and dependencies. CPU, RAM, GPU and free VRAM determine **daily-use priority / balanced / quality priority** presets. Modules and resource budgets can be chosen manually. Selecting a module records a configuration plan; it does not pretend missing models or accounts were installed.
 
 Speech, singing synthesis and conversion have separate GPU soft budgets. Local learning is optional and yields resources under load. Workers run on demand and audio caches have limits. Hardware presets cannot raise account permissions or change cloud service speed.
+
+**AstrBot is optional.** The wizard can prepare a separately pinned CPython 3.13 environment with relative local paths. Chat stays in legacy mode until a healthy kernel is explicitly selected in `/qq/engine`. Only end-turn and intent-routing tools are exposed; native QQ platforms, Computer Use, shell/file tools and a second proactive sender remain disabled. Mode changes keep the process; provider changes wait for generation and receipt commits before reload. See [hybrid kernel setup](docs/ASTRBOT_INTEGRATION.md).
 
 ## Models, permissions and concurrency
 
@@ -100,4 +103,4 @@ Please remove accounts, keys, cookies, private chats and personal paths from rep
 
 ## License and credits
 
-Application code is [GPL-3.0](LICENSE). Third-party programs, models, voices, stickers, characters and artwork keep their own terms. A source link is not redistribution permission. This project is not affiliated with or endorsed by DeepSeek, OpenAI, Tencent, Bilibili or Wuthering Waves.
+Application code is [GPL-3.0](LICENSE). The optional AstrBot dependency is **AGPL-3.0-or-later**, with the corresponding network-source provisions preserved for the combination. See [licensing and source offers](docs/LICENSES.md). Third-party programs, models, voices, stickers, characters and artwork keep their own terms. A source link is not redistribution permission. This project is not affiliated with or endorsed by DeepSeek, OpenAI, Tencent, Bilibili or Wuthering Waves.

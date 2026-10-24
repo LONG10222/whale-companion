@@ -1,12 +1,13 @@
 # 功能配置索引 / Feature configuration index
 
-安装向导列出以下 20 类功能。勾选记录配置计划；依赖状态、账号授权和真正启用是分别检查的。基础安装只配置自己的 DeepSeek Key、机器人 QQ 和管理账号；增强功能不附带作者登录态、模型或私人素材。
+安装向导列出以下 21 类功能。勾选记录配置计划；依赖状态、账号授权和真正启用是分别检查的。基础安装只配置自己的 DeepSeek Key、机器人 QQ 和管理账号；增强功能不附带作者登录态、模型或私人素材。
 
-The wizard lists these 20 capability families. Selection, dependency readiness and actual activation are separate states. The basic installer configures your own key, bot QQ and administrator; optional capabilities do not include the author's accounts, models or private assets.
+The wizard lists these 21 capability families. Selection, dependency readiness and actual activation are separate states. The basic installer configures your own key, bot QQ and administrator; optional capabilities do not include the author's accounts, models or private assets.
 
 | 功能 / Feature | 本机设置入口 / Local page | 主要配置或依赖 / Configuration or dependency |
 | --- | --- | --- |
 | DeepSeek 聊天 | `/qq` | `agent.local.json`；自己的 Key、实际可用模型 |
+| AstrBot 可选混合内核 | `/qq/engine` | 独立环境、`configs/chat-engine.local.json`；基础聊天接通且健康检查通过后手动选择 |
 | 人格、上下文与记忆 | `/qq/persona` | 本机角色卡、按身份隔离的 SQLite；记忆候选与反馈 |
 | 联系人与角色 | `/qq/contacts` | 联系人数据库；QQ 号为键，管理员设置 Plus |
 | 表情与表情包 | `/stickers` | `assets/stickers/catalog.json`；自己导入的许可素材 |

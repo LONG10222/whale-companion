@@ -69,6 +69,8 @@ STICKER_LIBRARY = register_sticker_routes(app,root=ROOT)
 
 from qq_routes import register_qq_routes
 QQ_SERVICE=register_qq_routes(app,authorize=authorize,root=ROOT)
+from chat_engine_routes import register_engine_routes
+register_engine_routes(app,root=ROOT,bridge=QQ_SERVICE,authorize=authorize)
 
 from qq_agent_routes import register_qq_agent_routes
 QQ_TASKS=register_qq_agent_routes(app,authorize=authorize,root=ROOT,bridge=QQ_SERVICE,mobile=MOBILE_SERVICE)

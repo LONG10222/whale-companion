@@ -234,8 +234,10 @@ class ManagedProcess:
         import psutil
         try:
             args = process.cmdline()
-            return (Path(process.exe()).resolve() == Path(self.argv[0]).resolve()
-                    and Path(process.cwd()).resolve() == self.cwd and args == self.argv)
+            exact_executable=Path(process.exe()).resolve() == Path(self.argv[0]).resolve()
+            venv_child=(self.name=='astrbot' and args and Path(args[0]).resolve()==Path(self.argv[0]).resolve()
+                        and Path(process.exe()).name.lower() in {'python.exe','pythonw.exe'})
+            return ((exact_executable or venv_child) and Path(process.cwd()).resolve() == self.cwd and args == self.argv)
         except (psutil.Error, OSError, ValueError):
             return False
 
@@ -294,6 +296,11 @@ class SetupEngine:
         self.updates = UpdateService(self.root)
         from feature_profiles import FeatureProfiles
         self.features = FeatureProfiles(self.root)
+        from optional_engine_setup import OptionalEngineInstaller
+        self.astrbot_installer = OptionalEngineInstaller(self.root)
+        self.astrbot = None
+        self.astrbot_fingerprint = ''
+        self.astrbot_state = 'disabled'
 
     def services(self):
         if self.runtime is not None:
@@ -319,11 +326,71 @@ class SetupEngine:
         progress = load_json(self.root / 'data/setup/update-progress.local.json', {})
         if self.install.get('completed') and progress.get('phase') != 'switching':
             self.api_state = api.tick()
+            self.ensure_astrbot()
             selected = load_json(self.root / 'configs/feature-profile.local.json', {}).get('selected', [])
             if any(name in selected for name in ['voice_output', 'singing', 'learning']):
                 readiness = self.features.readiness()
                 if any(name in selected and readiness[name]['ready'] for name in ['voice_output', 'singing', 'learning']):
                     self.ensure_voice()
+
+    def ensure_astrbot(self):
+        from chat_engine import settings as engine_settings
+        config = engine_settings(self.root)
+        if not config['enabled'] or not config['python'] or not config['profile']:
+            self.astrbot_state = 'disabled'
+            return
+        agent = load_json(self.root/'agent.local.json', {})
+        if not agent.get('api_key'):
+            self.astrbot_state = 'waiting_for_key'
+            return
+        try:
+            interpreter = child_path(config['python'], self.root)
+            profile = child_path(config['profile'], self.root)
+            if not interpreter.is_file():
+                self.astrbot_state = 'missing_environment'
+                return
+        except ValueError:
+            self.astrbot_state = 'manual_environment'
+            return
+        restart_fields = {key:config[key] for key in ['python','profile','port']}
+        provider_fields = {key:agent.get(key) for key in ['api_key','model']}
+        fingerprint = hashlib.sha256(json.dumps({'engine':restart_fields,'provider':provider_fields},sort_keys=True).encode()).hexdigest()
+        if self.astrbot is not None and fingerprint != self.astrbot_fingerprint:
+            import psutil
+            import httpx
+            owned = [p for p in psutil.process_iter() if self.astrbot.owns(p)]
+            if owned:
+                try:
+                    token = load_json(self.root/'settings.local.json')['api_token']
+                    with httpx.Client(trust_env=False,timeout=2) as client:
+                        health = client.get(f'http://127.0.0.1:{self.astrbot.ports[0]}/health',
+                                            headers={'Authorization':'Bearer '+token})
+                        health.raise_for_status();state = health.json()
+                    if state.get('pending') or state.get('busy'):
+                        self.astrbot_state = 'waiting_for_idle'
+                        return
+                except Exception:
+                    self.astrbot_state = 'waiting_for_idle'
+                    return
+            import psutil
+            # Stop the verified Python base child before its venv wrapper.
+            for process in sorted(owned,key=lambda p:len(p.parents()),reverse=True):
+                try:
+                    if self.astrbot.owns(process):
+                        process.terminate();process.wait(timeout=10)
+                except psutil.NoSuchProcess:pass
+            self.astrbot = None
+            write_json(self.root/'data/setup/astrbot-retries.local.json', {
+                'attempts':[], 'last_try':0, 'reason':'owner_configuration_changed'})
+        if self.astrbot is None:
+            profile.mkdir(parents=True,exist_ok=True)
+            env = dict(os.environ,PYTHONUTF8='1',OMP_NUM_THREADS='2',OPENBLAS_NUM_THREADS='2',
+                       MKL_NUM_THREADS='2',CUDA_VISIBLE_DEVICES='')
+            self.astrbot = ManagedProcess(self.root,'astrbot',
+                [interpreter,'-X','utf8',self.root/'astrbot_sidecar.py','--root',self.root,
+                 '--profile',profile,'--port',str(config['port'])],self.root,[config['port']],env)
+            self.astrbot_fingerprint = fingerprint
+        self.astrbot_state = self.astrbot.tick()
 
     def ensure_voice(self):
         settings = load_json(self.root / 'settings.local.json')
@@ -595,6 +662,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(200, self.server.engine.updates.state())
             if route == '/features/state':
                 return self.respond(200, self.server.engine.features.state())
+            if route == '/astrbot/state':
+                result = self.server.engine.astrbot_installer.state()
+                result['runtime'] = self.server.engine.astrbot_state
+                return self.respond(200, result)
             if route == '/qr':
                 file = child_path(Path(self.server.engine.config['napcat_root']) / 'cache/qrcode.png', self.server.engine.root)
                 if not file.is_file() or file.stat().st_size > 1024 * 1024:
@@ -643,6 +714,10 @@ class Handler(BaseHTTPRequestHandler):
             if route == '/features/preview':
                 from feature_profiles import recommendation
                 return self.respond(200, recommendation(self.server.engine.features.hardware(), data.get('mode')))
+            if route == '/astrbot/install':
+                if data:
+                    raise ValueError('可选安装只使用本项目固定版本，不接受路径或额外命令。')
+                return self.respond(200, self.server.engine.astrbot_installer.start())
             return self.respond(404, {'error': '没有这个操作。'})
         except (ValueError, json.JSONDecodeError) as exc:
             return self.respond(400, {'error': str(exc)[:200]})

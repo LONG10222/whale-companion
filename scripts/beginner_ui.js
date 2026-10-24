@@ -53,6 +53,15 @@ function renderUpdate(state) {
   $('release-link').hidden = !state.release;
   if (state.release) $('release-link').href = state.release.release_url;
 }
+async function loadAstrbot() {
+  try {
+    const state = await request('/astrbot/state');
+    $('astrbot-status').textContent = state.message;
+    $('astrbot-install').disabled = state.busy || state.installed;
+    $('astrbot-install').textContent = state.installed?'独立环境已安装':state.busy?'正在准备独立环境…':'安装可选 AstrBot 内核';
+    $('astrbot-open').hidden = !setupCompleted;
+  } catch(error) { $('astrbot-status').textContent = error.message; }
+}
 async function request(url, method='GET', body) {
   const response = await fetch(url, {method, headers, credentials:'same-origin', cache:'no-store',
     body:body===undefined?undefined:JSON.stringify(body)});
@@ -82,6 +91,7 @@ async function poll() {
     setupCompleted = state.completed;
     $('test-note').hidden = !state.test_instance;
     renderUpdate(state.updates);
+    await loadAstrbot();
     message(state.completed?'配置已经保存。':state.message, state.qq_runtime==='port_conflict');
     $('qq-status').textContent = state.message;
     if (state.key_saved) $('key-result').textContent = 'Key 已保存在本机，不会回显。';
@@ -135,6 +145,11 @@ $('apply-update').addEventListener('click', async () => {
   $('apply-update').disabled = true;
   try { renderUpdate(await request('/updates/apply','POST',{})); }
   catch (error) { $('update-progress').textContent = error.message; $('apply-update').disabled = false; }
+});
+$('astrbot-install').addEventListener('click', async () => {
+  $('astrbot-install').disabled=true;
+  try {await request('/astrbot/install','POST',{});await loadAstrbot();}
+  catch(error){$('astrbot-status').textContent=error.message;$('astrbot-install').disabled=false;}
 });
 $('load-preset').addEventListener('click', async () => {
   try {const preset=await request('/features/preview','POST',{mode:$('performance-mode').value});renderFeatures(featureState,preset);$('profile-result').textContent='已载入预设，点击保存才写入本机。';}

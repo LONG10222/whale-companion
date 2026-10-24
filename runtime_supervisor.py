@@ -109,6 +109,12 @@ class Service:
             if not args or Path(proc.exe()).name.lower() not in {'python.exe','pythonw.exe'}: return False
             if self.name=='voice':
                 return any(path_equal(a,self.cwd/'voice_server.py') for a in args[1:] if not a.startswith('-'))
+            if self.name=='astrbot':
+                return (any(path_equal(a,self.cwd/'astrbot_sidecar.py') for a in args[1:] if a.endswith('.py'))
+                        and '--profile' in args and '--port' in args
+                        and '--root' in args and path_equal(args[args.index('--root')+1],self.cwd)
+                        and path_equal(args[args.index('--profile')+1],self.argv[self.argv.index('--profile')+1])
+                        and args[args.index('--port')+1]==str(self.port))
             return (any(args[i:i+3]==['-m','uvicorn','phone_server:app'] for i in range(len(args)-2))
                     and '--port' in args and args[args.index('--port')+1]==str(self.port))
         except (psutil.Error,OSError,ValueError,IndexError): return False
@@ -122,6 +128,15 @@ def make_services(root):
     services=[
         Service('voice',[str(python),'-X','utf8',str(root/'voice_server.py'),'--config',str(root/'settings.local.json')],root,18765),
         Service('companion',[str(python),'-X','utf8','-m','uvicorn','phone_server:app','--host','127.0.0.1','--port','18766','--no-access-log'],root,18766)]
+    from chat_engine import settings as engine_settings
+    engine=engine_settings(root)
+    if engine['enabled'] and engine['python'] and engine['profile']:
+        interpreter=Path(engine['python']);profile=Path(engine['profile'])
+        if not interpreter.is_absolute():interpreter=root/interpreter
+        if not profile.is_absolute():profile=root/profile
+        interpreter=interpreter.resolve();profile=profile.resolve()
+        if interpreter.is_file() and (root/'astrbot_sidecar.py').is_file():
+            services.append(Service('astrbot',[str(interpreter),'-X','utf8',str(root/'astrbot_sidecar.py'),'--root',str(root),'--profile',str(profile),'--port',str(engine['port'])],root,engine['port'],env=dict(os.environ,PYTHONUTF8='1',CUDA_VISIBLE_DEVICES='',OMP_NUM_THREADS='2',OPENBLAS_NUM_THREADS='2',MKL_NUM_THREADS='2')))
     client=read_json(root/'configs/qq-client.local.json')
     if client:
         folder=Path(client['client_root']).resolve(); boot=Path(client['boot']).resolve()
@@ -171,16 +186,17 @@ class Supervisor:
         try:
             with socket.create_connection(('127.0.0.1',service.port),timeout=.5): pass
         except OSError: return 'missing'
-        endpoint='/health' if service.name=='voice' else '/qq/status'
+        endpoint='/health' if service.name in {'voice','astrbot'} else '/qq/status'
         req=Request(f'http://127.0.0.1:{service.port}{endpoint}',headers={'Authorization':'Bearer '+self.settings['api_token']})
         try:
             with self.opener.open(req,timeout=3) as response: data=json.loads(response.read(256*1024))
             if service.name=='voice': return 'ready' if data.get('status')=='ok' and 'worker_loaded' in data else 'unhealthy'
+            if service.name=='astrbot':return 'ready' if data.get('ok') is True and data.get('framework')=='AstrBot' and data.get('computer_tools') is False else 'unhealthy'
             return 'ready' if 'allowed_private_ids' in data and 'groups_enabled' in data else 'unhealthy'
         except Exception: return 'unhealthy'
     def listeners(self):
         return {c.laddr.port:c.pid for c in psutil.net_connections(kind='tcp')
-                if c.status==psutil.CONN_LISTEN and c.laddr and c.laddr.port in {18765,18766}}
+                if c.status==psutil.CONN_LISTEN and c.laddr and c.laddr.port in {s.port for s in self.services if s.port}}
     def spawn(self,service):
         folder=self.root/'logs/qq'; folder.mkdir(parents=True,exist_ok=True); handles=[]
         try:

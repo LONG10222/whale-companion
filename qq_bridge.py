@@ -325,6 +325,7 @@ class QQBridge:
             from qq_delivery import confirmed_history
             delivery_summary=confirmed_history(result,confirmed_packets)
             local_id=self.chat.memory.add(peer,'assistant',delivery_summary);history_recorded=True
+            if result.get('native_ticket') and any(s['type']=='text' for packet in confirmed_packets for s in packet):self.chat.native_engine.confirm(result['native_ticket'])
             for remote_id in delivery_ids:
                 self.chat.memory.learning.delivery(peer,remote_id,local_id);self.groups.receipt(peer,remote_id,local_id)
             for item in result['attachments']:
@@ -337,6 +338,7 @@ class QQBridge:
             if confirmed_packets and result is not None and not history_recorded:
                 from qq_delivery import confirmed_history
                 local_id=self.chat.memory.add(peer,'assistant',confirmed_history(result,confirmed_packets,partial=True))
+                if result.get('native_ticket') and any(s['type']=='text' for packet in confirmed_packets for s in packet):self.chat.native_engine.confirm(result['native_ticket'])
                 for remote_id in delivery_ids:
                     self.chat.memory.learning.delivery(peer,remote_id,local_id);self.groups.receipt(peer,remote_id,local_id)
                 sent_files={segment.get('data',{}).get('file') for packet in confirmed_packets for segment in packet if segment['type']=='image'}

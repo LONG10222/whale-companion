@@ -17,6 +17,8 @@ workspace/
 models/
 .venv/
 .runtime/
+runtime/
+live-profile/
 .installer-cache/
 .autonomy-runtime/
 robot-instance/

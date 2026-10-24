@@ -226,6 +226,8 @@ class QQConversation:
         self.jargon=JargonStore(self.root);self.tasks=None;self.creative=None;self.balance=None;self.permissions=ChatPermissions(self.root)
         from qq_identity import Contacts
         self.contacts=Contacts(self.root)
+        from chat_engine import ChatEngine
+        self.native_engine=ChatEngine(self.root)
         from qq_images import QQImages
         self.images=QQImages(self.root)
         from qq_videos import QQVideos
@@ -338,7 +340,13 @@ class QQConversation:
                     if release:c.post(f'http://127.0.0.1:{cfg["port"]}/admin/unload',headers={'Authorization':'Bearer '+cfg['api_token']}).raise_for_status()
                 except Exception:pass
     def prepare(self,peer,text,voice_enabled=True,remember=True,images=None,media_context=None,task_context=None,quoted_context=None,audio_context=None,file_context=None,file_catalog=None):
-        raw_text=text;descriptions=[];incoming_images=images or [];image_cache_error=''
+        raw_text=text;descriptions=[];incoming_images=images or [];image_cache_error='';native_mid=None
+        from chat_engine import source_request,source_information
+        if source_request(raw_text):
+            if remember:self.memory.add(peer,'user',raw_text)
+            info=source_information(self.root)
+            return {'reply':'鲸娅应用代码采用 GPL-3.0，可选 AstrBot 内核采用 AGPL-3.0-or-later。对应源码：'+info['source_url'],
+                    'attachments':[],'tools':[{'tool':'source_information','result':info}]}
         from qq_scope import group
         group_scope=group(peer)
         bili=getattr(self,'bilibili',None)
@@ -402,6 +410,28 @@ class QQConversation:
             if remember:self.memory.add(peer,'user',raw_text)
             return {'reply':task_status_reply(job_context,raw_text),'attachments':[],
                 'tools':[{'tool':'inspect_work','result':task_state_data(job_context,raw_text)}]}
+        from chat_engine import eligible as native_eligible
+        native_config=self.native_engine.config()
+        if native_config['enabled'] and native_config.get('mode')=='hybrid' and not photo_pending and not failure_followup(raw_text,prior_messages,job_context) and native_eligible(raw_text,prior_messages,
+                has_media=bool(images or media_context or quoted_context or audio_context or file_context or file_catalog or image_cache_error or '[QQ表情' in raw_text),approval=bool(approval)):
+            if remember:
+                native_mid=self.memory.add(peer,'user',raw_text)
+                self.memory.life.observe_correction(peer,native_mid)
+                self.learning.observe_style(peer,native_mid,raw_text,self.persona.load())
+            try:native=self.native_engine.converse(peer,raw_text,self,{**(task_context or {}),'_native_current_recorded':bool(native_mid)})
+            except Exception as exc:
+                self.native_engine.last_error=type(exc).__name__;native=None
+            if native is not None:
+                if not native.get('silent'):
+                    choice=sticker_request(raw_text,prior_messages);mode=self.agent_settings()['sticker_mode']
+                    activity=self.memory.sticker_activity(peer)
+                    opportunity=sticker_opportunity(mode,raw_text,native['reply'],activity,time.time(),trace=[],forbid=choice['forbid'])
+                    if opportunity.get('allowed') and opportunity.get('due'):
+                        try:
+                            info,pictures=self.prepare_stickers(peer,raw_text,{'emotion':opportunity['emotion'],'query':opportunity['query'],'theme':'','character':'','require_query':opportunity.get('require_query',False)},choice,spontaneous=True)
+                            native['attachments'].extend(pictures);native['tools'].append({'tool':'use_sticker','automatic':True,'result':info})
+                        except Exception:pass
+                return native
         saved_job_context=list(job_context)
         active_rows=self.memory.active_rows(peer,64);since=active_rows[0][2] if active_rows else time.time()
         job_context=[j for j in job_context if not j.get('at') or j['at']>=since or j.get('state') in {'accepted','running'}]
@@ -430,11 +460,11 @@ class QQConversation:
                 photo_pending='';user_text=raw_text
             else:task_context={**(task_context or {}),'_pending_photo_edit':True}
         if remember:
-            mid=self.memory.add(peer,'user',text)
+            mid=native_mid or self.memory.add(peer,'user',text)
             if quoted_context:self.memory.remember_quote(peer,mid,quoted_context)
             if incoming_images:self.memory.remember_images(peer,mid,incoming_images)
-            if raw_text:self.memory.life.observe_correction(peer,mid)
-            if raw_text:self.learning.observe_style(peer,mid,raw_text,self.persona.load())
+            if raw_text and not native_mid:self.memory.life.observe_correction(peer,mid)
+            if raw_text and not native_mid:self.learning.observe_style(peer,mid,raw_text,self.persona.load())
         image_turn=image_interaction(raw_text,descriptions,images)
         turn_understanding=next((d['conversation_turn'] for d in descriptions if isinstance(d,dict) and d.get('conversation_turn')),None)
         closure_semantic=({**(turn_understanding or {}),'visible_text':' '.join(str(d.get('text','')) for d in descriptions if isinstance(d,dict))} if image_turn and image_turn['social'] else {})

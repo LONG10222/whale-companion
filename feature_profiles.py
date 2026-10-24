@@ -37,6 +37,7 @@ CATALOG = [
     {'id': 'balance', 'name': 'API 余额提醒与用量日志', 'kind': 'core', 'page': '/qq/creative', 'cost': '官方余额、实际回执与本机日志；不推算未知费用'},
     {'id': 'updates', 'name': '自动新版提醒与点击升级', 'kind': 'core', 'page': '/updates', 'cost': '校验、备份、等任务结束、失败回退'},
     {'id': 'bilibili', 'name': 'B站浏览、分享与单独授权的互动', 'kind': 'optional', 'page': '/qq/bilibili', 'cost': '仅管理员私聊；自己的B站登录；评论、投币另行确认'},
+    {'id': 'astrbot', 'name': 'AstrBot 可选混合对话内核', 'kind': 'optional', 'page': '/qq/engine', 'cost': '独立环境，沿用自己的 DeepSeek API；默认仍是原有对话，需另行切换'},
 ]
 
 
@@ -185,6 +186,10 @@ class FeatureProfiles:
                 ready, reason = False, '需另行配置专用模拟器并本人登录；不会读取日常手机。'
             elif item['id'] == 'bilibili':
                 ready, reason = (self.root/'bili_reader/patrol.py').is_file(), '模块已安装后仍需本人登录；浏览、主动分享和公开互动分别设置。'
+            elif item['id'] == 'astrbot':
+                from optional_engine_setup import environment_state
+                ready = environment_state(self.root)['installed']
+                reason = '独立依赖环境已找到；对话设置中的真实健康检查通过后才可切换。' if ready else '可在安装向导中选装独立环境；基础聊天不受影响。'
             elif item['id'] == 'stickers':
                 reason = 'QQ 默认表情可用；本地图片包需要按许可自行导入。'
             results[item['id']] = {'ready': ready, 'detail': reason}
