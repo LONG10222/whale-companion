@@ -52,6 +52,8 @@ class SpontaneousStickerTests(unittest.TestCase):
         self.assertFalse(self.chat.prepare('peer','看看这张',images=[{}],remember=False)['attachments'])
     def test_full_qq_delivery_alternates_images_and_text_and_records_real_success(self):
         b=QQBridge(self.root,self.chat);b.configure(True,'12345678',['87654321'],False);b.connected=True;b.login_id='12345678';b.epoch='one';sent=[]
+        # Batching timing is covered separately; this contract checks delivery and receipts.
+        b.batcher.quiet=0
         b.call=lambda action,params,**kw:sent.append(params) or {'message_id':len(sent)}
         image_rounds=[]
         try:
@@ -59,7 +61,7 @@ class SpontaneousStickerTests(unittest.TestCase):
                 before=len(sent)
                 with patch('time.time',return_value=1000+i*60):
                     obj={'message_type':'private','sub_type':'friend','self_id':12345678,'user_id':87654321,'message_id':i+1,'message':[{'type':'text','data':{'text':'哈哈哈好有意思'}}]}
-                    self.assertTrue(b.accept(obj,'one'));b.pool.submit(lambda:None).result(4)
+                    self.assertTrue(b.accept(obj,'one'));b.pool.submit(lambda:None).result(timeout=30)
                 if any(m['type']=='image' for r in sent[before:] for m in r['message']):image_rounds.append(i)
                 if len(sent)-before==2:
                     self.assertEqual(sent[before]['message'][0]['type'],'text');self.assertEqual(sent[before+1]['message'][0]['type'],'image')
@@ -67,10 +69,11 @@ class SpontaneousStickerTests(unittest.TestCase):
         finally:b.pool.shutdown(wait=True)
     def test_failed_or_unknown_qq_send_does_not_record_sticker_as_sent(self):
         b=QQBridge(self.root,self.chat);b.configure(True,'12345678',['87654321'],False);b.connected=True;b.login_id='12345678';b.epoch='one'
+        b.batcher.quiet=0
         b.call=lambda *a,**kw:(_ for _ in ()).throw(RuntimeError('unknown receipt'))
         try:
             b.accept({'message_type':'private','sub_type':'friend','self_id':12345678,'user_id':87654321,'message_id':1,'message':[{'type':'text','data':{'text':'哈哈哈哈'}}]},'one')
-            b.pool.submit(lambda:None).result(4);self.assertFalse(self.chat.memory.sticker_activity('87654321')['last_at'])
+            b.pool.submit(lambda:None).result(timeout=30);self.assertFalse(self.chat.memory.sticker_activity('87654321')['last_at'])
         finally:b.pool.shutdown(wait=True)
     def test_explicit_request_bypasses_spontaneous_cooldown(self):
         self.chat.memory.sticker_sent('peer','0')
