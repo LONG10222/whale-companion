@@ -31,6 +31,10 @@ class SpeechIntentTests(unittest.TestCase):
         self.assertEqual(read_target(speech_request('把我上一句转成语音'),'把我上一句转成语音',[('user','2026年，10元。'),('assistant','收到')]),('2026年，10元。','previous_user'))
     def test_unavailable_reference_never_uses_other_history(self):
         with self.assertRaises(ValueError):read_target(speech_request('读引用这条'),'',[('assistant','其他话')],{'missing':True})
+    def test_unattached_quote_does_not_select_the_bots_recent_words(self):
+        for request in ['用语音复述我引用的对话','把他说的那条用语音念一遍']:
+            with self.assertRaises(ValueError):read_target(speech_request(request),request,[('assistant','不是被引用的内容')])
+
     def test_peer_and_group_preferences_are_isolated(self):
         with tempfile.TemporaryDirectory() as folder:
             c=QQConversation(Path(folder),client=lambda *_:({'content':'嗯'},{}),speaker=lambda _:None)

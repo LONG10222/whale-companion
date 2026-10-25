@@ -52,6 +52,8 @@ def read_target(request,text,recent,quoted=None,descriptions=None):
     if quoted is not None:
         if quoted.get('text'):return speakable(quoted['text']),'quoted'
         raise ValueError('没取到你引用的那段原文，重新引用那条文字消息，我就读给你听。')
+    if quoted is None and re.search(r'引用|回复的那条|他说的|她说的|对方说的',text):
+        raise ValueError('这次没有收到对应引用，重新引用那条消息，我就按原文念。')
     if re.search('图|里面|里边|这里面',text):
         found='\n'.join(d.get('text','').strip() for d in descriptions or [] if isinstance(d,dict) and isinstance(d.get('text'),str) and d.get('text','').strip())
         if found:return found,'image_text'
