@@ -111,7 +111,11 @@ class ProactiveChat:
         with self.db() as connection:
             contact=connection.execute('SELECT * FROM contact WHERE peer=?',(who,)).fetchone()
             deliveries=connection.execute("SELECT * FROM deliveries WHERE peer=? AND status IN ('sending','sent','uncertain') AND id!=? ORDER BY at DESC",(who,ignore_delivery_id or '')).fetchall()
-        attempts=sum(r['day']==day for r in deliveries);awaiting=bool(deliveries and activity['user_at']<=deliveries[0]['at'])
+        video_deliveries=[]
+        if self.bilibili and hasattr(self.bilibili,'db'):
+            with self.bilibili.db() as connection:video_deliveries=connection.execute("SELECT at,day FROM deliveries WHERE state IN ('sending','sent','uncertain')").fetchall()
+        all_deliveries=[*deliveries,*video_deliveries]
+        attempts=sum(r['day']==day for r in all_deliveries);awaiting=bool(all_deliveries and activity['user_at']<=max(r['at'] for r in all_deliveries))
         hour=datetime.fromtimestamp(now,ZONE).hour
         if not settings['enabled']:reasons.append('主动聊天候选已暂停。')
         if not snapshot['connected'] or not snapshot['account_matches'] or not snapshot['enabled']:reasons.append('QQ未连接正确测试小号，或私聊回复已暂停。')
@@ -200,7 +204,7 @@ class ProactiveChat:
             browsing_tools=None
             if self.bilibili and settings['bilibili_enabled']:
                 from bilibili_sharing import tool_definition,CHAT_HINT
-                messages.append({'role':'system','content':CHAT_HINT+'\n以下videos都是实际读过的首P字幕资料，不是亲自看过画面。你可以选一条分享，也可以完全不选。不要硬把聊天转成B站推送；通常一句感受加一个具体点即可，不像发日报。最终JSON额外支持topic_kind="video"与video_ids数组（最多1个，只能选给定videos的id）；选视频必须给video_ids，正文不自造链接，程序附真实来源。没有合适的就聊日常。\n'+json.dumps({'videos':videos},ensure_ascii=False)})
+                messages.append({'role':'system','content':CHAT_HINT+'\n以下videos都附真实阅读范围scope、channels与时间段；只有已提供的抽样画面才能说看见，不能声称完整观看或听过音轨。你可以选一条分享，也可以完全不选。不要硬把聊天转成B站推送；通常一句感受加一个具体点即可，不像发日报。最终JSON额外支持topic_kind="video"与video_ids数组（最多1个，只能选给定videos的id）；选视频必须给video_ids，正文不自造链接，程序附真实来源。没有合适的就聊日常。\n'+json.dumps({'videos':videos},ensure_ascii=False)})
                 if not manual and self.bilibili.config()['auto_read_enabled'] and self.bilibili.status()['automatic_reads_today']<1:
                     browsing_tools=[tool_definition()]
             response,_=self.client(messages,browsing_tools)
@@ -244,6 +248,7 @@ class ProactiveChat:
             if re.search(r'https?://',text):status='skipped';reason='正文含模型自行添加的链接，本轮未发。';text=''
             if status=='draft' and (len(text)>160 or re.search(r'怎么不回|一直等你|再不回|我刚(?:刷到|吃完|洗完|下载)|^在吗[？?。!！]*$',text)):
                 status='skipped';reason='这条开场不符合简短、无催促和事实要求，未作为可发送草稿。';text=''
+            if status=='draft' and any(re.sub(r'\W+','',text).casefold()==re.sub(r'\W+','',p['message']).casefold() or topic and topic==p['topic'] for p in previous):status='skipped';reason='与近期主动分享重复，这轮不打扰。';text=''
             if self.exit.is_set() or self.context_token(who,self.bridge.chat.persona.load())!=token:status='stale'
             valid_ids={s['id'] for s in sources};ids=data.get('source_ids',[])
             ids=[i for i in ids if isinstance(i,int) and i in valid_ids] if isinstance(ids,list) else []

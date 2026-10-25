@@ -16,14 +16,14 @@ function renderResult(result){
   const box=$('results');box.replaceChildren();
   const selected=(result.items||[]).filter(x=>x.status==='selected');
   if(result.notice)box.append(text('p',result.notice,'message'));
-  if(!selected.length)box.append(text('p','这轮还没有足够的字幕依据推荐视频，先不硬凑。','muted'));
+  if(!selected.length)box.append(text('p','这轮还没有足够的实际阅读依据推荐视频，先不硬凑。','muted'));
   for(const item of selected){
     const card=text('article','','video'),heading=document.createElement('h3'),link=document.createElement('a');
     link.textContent=item.title;link.href='https://www.bilibili.com/video/'+item.bvid+'/';link.target='_blank';link.rel='noopener noreferrer';heading.append(link);card.append(heading);
     const date=new Date(item.published*1000).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'});
     const seconds=item.duration_seconds||0;
     card.append(text('p',`${item.author?item.author+' · ':''}${date} · ${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')} · 首 P / 共 ${item.parts_total||1} P`,'meta'));
-    card.append(text('p',item.summary),text('p','推荐理由：'+item.reason),text('p','鲸娅的一句话：'+item.take),text('p','字幕依据：'+item.evidence,'evidence'));box.append(card);
+    card.append(text('p',item.scope||'首P字幕；未读取画面','meta'));card.append(text('p',item.summary),text('p','推荐理由：'+item.reason),text('p','鲸娅的一句话：'+item.take),text('p','阅读依据：'+item.evidence,'evidence'));box.append(card);
   }
   for(const item of result.items||[]){if(item.status!=='selected')box.append(text('p',(item.title||item.bvid)+'：'+(item.reason||item.status),'skip'));}
 }

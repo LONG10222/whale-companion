@@ -30,6 +30,22 @@ class BiliProposal(BiliShare):
 class BiliConfirmation(BaseModel):
     model_config=ConfigDict(extra='forbid')
     proposal_id:str=Field(pattern=r'^[a-f0-9]{32}$')
+class ListenerConfig(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    comment:bool=False
+    dm:bool=False
+    live:bool=False
+    owner_mid:str=Field(default='',max_length=20)
+    room_id:str=Field(default='',max_length=20)
+    interval_seconds:int=Field(default=120,ge=60,le=900)
+    all_day:bool=False
+class ListenerPreview(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    event_id:str=Field(min_length=1,max_length=160)
+class ListenerConfirm(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    draft_id:str=Field(pattern=r'^[a-f0-9]{32}$')
+    approved_text:str=Field(min_length=1,max_length=180)
 
 def register_bilibili_routes(app,*,root,authorize,bridge,proactive):
     root=Path(root);service=BilibiliSharing(root);service.import_completed()
@@ -41,6 +57,36 @@ def register_bilibili_routes(app,*,root,authorize,bridge,proactive):
         db.execute("UPDATE deliveries SET state='failed' WHERE state='preparing'")
     prefix='/qq/bilibili';deps=[Depends(authorize)]
     def error(exc):raise HTTPException(409,str(exc)[:200]) from None
+    @app.get(prefix+'/listeners',response_class=HTMLResponse)
+    def listeners_page():return (root/'bilibili_listeners.html').read_text(encoding='utf-8')
+    @app.get(prefix+'/listeners-ui.js')
+    def listeners_script():return Response((root/'bilibili_listeners_ui.js').read_text(encoding='utf-8'),media_type='text/javascript')
+    @app.get(prefix+'/listeners/state',dependencies=deps)
+    def listeners_state():return service.listeners.state()
+    @app.post(prefix+'/listeners/config',dependencies=deps)
+    def listeners_config(body:ListenerConfig):
+        try:return {'config':service.listeners.configure(body.model_dump()),'saved':True}
+        except ValueError as exc:error(exc)
+    @app.post(prefix+'/listeners/poll/{channel}',dependencies=deps)
+    def listeners_poll(channel:Literal['comment','dm','live']):return service.listeners.poll(channel)
+    @app.post(prefix+'/listeners/preview',dependencies=deps)
+    def listeners_preview(body:ListenerPreview):
+        from persona_store import card_messages
+        from qq_chat import INSTRUCTIONS
+        try:return service.listeners.preview(body.event_id,bridge.chat.model_response,card_messages(bridge.chat.persona.load(),INSTRUCTIONS))
+        except Exception:error(ValueError('本次未准备好回复草稿，没有发送。'))
+    @app.post(prefix+'/listeners/confirm',dependencies=deps)
+    def listeners_confirm(body:ListenerConfirm):
+        try:return service.listeners.confirm(body.draft_id,body.approved_text)
+        except Exception as exc:error(exc)
+    @app.get(prefix+'/traffic/state',dependencies=deps)
+    def traffic_state():
+        from bili_reader.traffic import Traffic
+        return Traffic(service.home()).status()
+    @app.post(prefix+'/traffic/resume',dependencies=deps)
+    def traffic_resume():
+        from bili_reader.traffic import Traffic
+        Traffic(service.home()).resume();return {'saved':True,'timed_pause_preserved':True}
     @app.get(prefix,response_class=HTMLResponse)
     def page():
         html=(ASSETS/'index.html').read_text(encoding='utf-8').replace('href="/style.css"',f'href="{prefix}/style.css"').replace('src="/app.js"',f'src="{prefix}/app.js"')
@@ -50,6 +96,7 @@ def register_bilibili_routes(app,*,root,authorize,bridge,proactive):
         social='''<section class="card result"><span class="step">B站互动权限</span><h2>分别设置自主互动</h2><label><input id="bili-like" type="checkbox">自动点赞（每日最多3条）</label><label><input id="bili-comment-auto" type="checkbox">允许自主发评论（每日最多2条）</label><label><input id="bili-coin-auto" type="checkbox">允许自主投币（每日最多2枚，每条自动投1枚）</label><p class="muted">只在管理员私聊开放。对实际读过并分享的公开视频，由模型选择是否互动；不保证每条都投币或评论。关闭相应开关后，评论和投币先展示提案。页面下方的“预览”始终只准备内容。</p><p id="bili-policy-state" class="message"></p><label for="bili-comment">评论草稿（留空时先依据公开视频拟一句）</label><input id="bili-comment" maxlength="180" placeholder="只写视频内容，不带QQ私聊或个人信息"><div class="actions"><button id="bili-comment-proposal" class="secondary">预览评论</button><select id="bili-coins"><option value="1">投1枚</option><option value="2">投2枚</option></select><button id="bili-coin-proposal" class="secondary">预览投币</button></div><pre id="bili-proposal-text"></pre><button id="bili-confirm" hidden>确认执行这份提案</button><p id="bili-social-notice" class="message"></p></section>'''
         html=html.replace('<section class="card result"><div class="result-heading">',social+'<section class="card result"><div class="result-heading">')
         html=html.replace('</head>',f'<script src="{prefix}/qq-ui.js" defer></script></head>')
+        html=html.replace('<div class="columns">','<p><a href="/qq/life">作息与双日记</a> · <a href="/qq/bilibili/listeners">B站倾听与回复草稿</a></p><div class="columns">')
         return html
     @app.get(prefix+'/style.css')
     def css():return Response((ASSETS/'style.css').read_text(encoding='utf-8')+'\n.actions label{font-size:13px;margin:0;display:flex;align-items:center;gap:6px}.card input[type=checkbox]{width:auto;display:inline-block}pre{white-space:pre-wrap;font:inherit}',media_type='text/css')

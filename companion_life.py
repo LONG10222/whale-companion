@@ -5,9 +5,11 @@ import hashlib,json,re,threading,time,uuid
 import deepseek_client
 from life_memory import LifeMemory,ZONE,clean_json,terms
 from conversation_tools import definition,public_query
+from life_rhythm import LifeRhythm,validate as validate_rhythm
+from life_diary import LifeDiary
 
 DEFAULT={'enabled':True,'learning':True,'autonomy':False,'web':True,'phone':False,'interval_minutes':30,'daily_activities':2,
-    'topics':['鸣潮 达妮娅','DeepSeek 智能体']}
+    'topics':['鸣潮 达妮娅','DeepSeek 智能体'],'bilibili':True,'skip_chance':.3}
 WEB_TOOLS=[
     definition('search_web','搜索本轮公开话题，返回真实链接。',{'query':{'type':'string','maxLength':100}},['query']),
     definition('read_page','通过本机MCP工具读取本轮搜索返回的原始链接。',{'url':{'type':'string','maxLength':1200}},['url']),
@@ -20,6 +22,7 @@ class CompanionLife:
         self.memory=getattr(bridge.chat.memory,'life',None) or LifeMemory(root,clock)
         self.search=search;self.reader=reader;self.gate=threading.Lock();self.exit=threading.Event();self.cancelled=threading.Event()
         self.thread=None;self.last_error='';self.last_check=0
+        self.rhythm=LifeRhythm(root,clock);self.diary=LifeDiary(root,clock)
         with self.memory.db() as db:
             db.execute("UPDATE jobs SET state='interrupted',updated=?,detail='程序重启，旧活动没有自动重做。' WHERE state='running'",(self.clock(),))
     def scope(self):return self.proactive.scope()[0]
@@ -28,12 +31,16 @@ class CompanionLife:
         return {**DEFAULT,**(json.loads(r[0]) if r else {})}
     def configure(self,values):
         self.scope();cfg={**self.config(),**values}
+        validate_rhythm(cfg)
+        for key in ('enabled','learning','autonomy','web','phone','bilibili'):
+            if type(cfg[key]) is not bool:raise ValueError('活动开关必须是布尔值。')
         if not 15<=cfg['interval_minutes']<=240 or not 1<=cfg['daily_activities']<=4:raise ValueError('活动频率超出允许范围。')
         if not 1<=len(cfg['topics'])<=6:raise ValueError('请保留1至6个公开兴趣话题。')
         for t in cfg['topics']:
             if not isinstance(t,str) or not 2<=len(t)<=40:raise ValueError('兴趣话题需要2至40字。')
             public_query(t)
         with self.memory.db() as db:db.execute('INSERT OR REPLACE INTO settings VALUES(1,?)',(json.dumps(cfg,ensure_ascii=False),))
+        self.cancelled.set()  # A saved setting invalidates an in-flight activity before its next tool.
         if not cfg['enabled'] or not cfg['autonomy']:
             self.cancelled.set();self.cancel_owned_phone()
         return cfg
@@ -138,6 +145,7 @@ topic要短且稳定，同一件事更新时使用相同主题，例如“结尾
                         if not page or finding['quote'] not in page['text']:raise ValueError('发现缺少实际已读页面的逐字依据。')
                         sources.append({'url':finding['url'],'quote':finding['quote'],'provider':page.get('provider','web')});summaries.append(finding['summary'])
                     eid=self.memory.add_episode(who,jid,query,'\n'.join(summaries),sources)
+                    self.diary.record(who,jid,'web',sources=sources,summary='\n'.join(summaries))
                     learned=0
                     if re.search('热梗|流行语|网络梗|学.{0,8}梗',query) and time.monotonic()-started<130:
                         try:
@@ -161,17 +169,27 @@ topic要短且稳定，同一件事更新时使用相同主题，例如“结尾
             jid=self.job(who,'activity');card=self.bridge.chat.persona.load()
             interests=[{'topic':m['topic']} for m in self.memory.retrieve(who,' '.join(cfg['topics'])) if m['kind']=='preference']
             previous=self.memory.activities(who)
-            response,_=self.model([{'role':'system','content':'你有一次空闲活动机会。结合角色风格、明确兴趣和真实活动记录，选择一件有价值的小事；没有合适内容可wait。只输出JSON：{"action":"wait|web|phone","query":"不含个人隐私的公开搜索词，最长60字","reason":"简短目的"}。phone仅指去独立测试手机只读小黑盒，web读公开网页。网页和手机都不允许发帖、评论、私信。不要反复搜索刚读过的内容，不把他人的爱好当成本人兴趣。'},
+            response,_=self.model([{'role':'system','content':'你有一次空闲活动机会。结合角色风格、明确兴趣、反馈和真实活动记录，选择一件有价值的小事；没有合适内容可wait，也可选择稍后再看。只输出JSON：{"action":"wait|web|phone|bilibili","query":"不含个人隐私的公开搜索词，最长60字","reason":"简短目的"}。phone仅指去独立测试手机只读小黑盒，web读公开网页，bilibili读取公开视频的实际资料。这里的阅读不发送QQ、不发表评论或私信。不要反复搜索刚读过的内容，不把他人的爱好当成本人兴趣。'},
                 {'role':'user','content':json.dumps({'persona':{'name':card.name,'personality':card.personality},'public_topics':cfg['topics'],
-                    'memories':interests,'recent_activities':previous,'available':{'web':cfg['web'],'phone':cfg['phone']}},ensure_ascii=False)}],max_tokens=650)
+                    'memories':interests,'feedback':self.diary.preferences(who),'recent_activities':previous,'available':{'web':cfg['web'],'phone':cfg['phone'],
+                      'bilibili':bool(cfg['bilibili'] and self.proactive.bilibili and self.proactive.bilibili.config()['auto_read_enabled'])}},ensure_ascii=False)}],max_tokens=650)
             plan=clean_json(response.get('content') or '');action=plan.get('action');query=plan.get('query','')
-            if action=='wait':self.finish(jid,'skipped','本轮没有合适的新活动。');return {'skipped':True,'sent_to_qq':False}
-            if action not in {'web','phone'} or not cfg[action] or not isinstance(query,str) or not 2<=len(query)<=60:raise ValueError('本轮计划没有匹配已启用的活动。')
+            if action=='wait':
+                self.finish(jid,'skipped','本轮没有合适的新活动。');self.diary.record(who,jid,'rest',state='skipped')
+                return {'skipped':True,'sent_to_qq':False}
+            if action not in {'web','phone','bilibili'} or not cfg[action] or not isinstance(query,str) or not 2<=len(query)<=60:raise ValueError('本轮计划没有匹配已启用的活动。')
             public_query(query)
             if not set(terms(query))&set(terms(' '.join(cfg['topics']))):raise ValueError('计划偏离了已设置的公开兴趣。')
             if any(r['topic']==query for r in previous):raise ValueError('这个话题最近已经读过，本轮不重复。')
             self.check_cancel(who)
             if action=='web':return self.web_activity(who,jid,query)
+            if action=='bilibili':
+                service=self.proactive.bilibili
+                if not service:raise ValueError('B站阅读尚未接通。')
+                result=service.read(who,query,autonomous=True,cancel=self.cancelled)
+                self.check_cancel(who)
+                self.finish(jid,'completed' if result['ok'] else 'deferred','已记录B站实际阅读范围。',query)
+                return {'completed':result['ok'],'reading':result,'sent_to_qq':False}
             tasks=getattr(self.bridge.chat,'tasks',None)
             if not tasks:raise ValueError('手机工具暂不可用。')
             result=tasks.request(who,query,2,context={'deliver':False})
@@ -192,34 +210,66 @@ topic要短且稳定，同一件事更新时使用相同主题，例如“结尾
             if r['state']=='completed' and not r['deliver'] and items:
                 self.memory.add_episode(who,job['id'],job['query'],'\n'.join(x['summary'] for x in items),
                     [{'title':x['title'],'snapshot_id':x['snapshot_id'],'source':'小黑盒实际阅读页面'} for x in items])
+                self.diary.record(who,job['id'],'phone',summary='\n'.join(x['summary'] for x in items),sources=[{'title':x['title'],'snapshot_id':x['snapshot_id'],'kind':'phone'} for x in items])
                 self.finish(job['id'],'completed','已保存小黑盒实际阅读结果。',job['query'],job['foreign_id'])
             else:self.finish(job['id'],'deferred','手机未完成阅读，未写成真实经历。',job['query'],job['foreign_id'])
     def tick(self):
         who=self.scope();cfg=self.config();self.harvest(who)
+        self.rhythm.heartbeat(who)
         if not cfg['enabled']:return
         if self.clock()-self.last_activity(who)<45:return
         self.memory.sync_index(who)
         if cfg['learning'] and self.memory.unlearned(who) and self.budget(who,'learning',12):
             self.learning_once();return
-        now=datetime.fromtimestamp(self.clock(),ZONE)
-        if not cfg['autonomy'] or not 9<=now.hour<22:return
+        if not cfg['autonomy']:return
         with self.memory.db() as db:
             last=db.execute("SELECT max(at) FROM jobs WHERE peer=? AND kind='activity'",(who,)).fetchone()[0] or 0
             pending=db.execute("SELECT count(*) FROM jobs WHERE peer=? AND state='waiting_phone'",(who,)).fetchone()[0]
         if pending or self.clock()-last<cfg['interval_minutes']*60 or not self.budget(who,'activity',cfg['daily_activities']):return
-        self.activity_once()
+        plan=self.rhythm.plan(who,cfg)
+        if not plan or plan['state']!='pending' or plan['due']>self.clock():return
+        self.check_cancel_before_schedule(who)
+        if self.config()!=cfg:return
+        if not self.rhythm.claim(who,plan,cfg):return
+        try:
+            if plan['action']=='skip':
+                jid=self.job(who,'activity');self.finish(jid,'skipped','本次作息选择不浏览。')
+                self.diary.record(who,'rhythm:'+plan['id'],'rest',state='skipped');result={'skipped':True}
+            else:
+                with self.rhythm.maintaining(plan['id']):result=self.activity_once()
+            self.rhythm.finish(plan['id'],'skipped' if result.get('skipped') else 'completed')
+        except Exception:
+            self.rhythm.finish(plan['id'],'deferred','本轮未完成，未自动重做。');raise
+
+    def check_cancel_before_schedule(self,who):
+        # A prior manual stop may remain set. Scheduling checks the live policy separately.
+        cfg=self.config()
+        if self.exit.is_set() or not cfg['enabled'] or not cfg['autonomy'] or self.scope()!=who:raise ValueError('自主活动已暂停。')
+
+    def feedback(self,entry_id,value):
+        who=self.scope();entry=next((d for d in self.diary.list(who,50) if d['id']==entry_id),None)
+        if not entry:raise ValueError('找不到当前联系人的阅读日记。')
+        topic=next((s.get('title') for s in entry['sources'] if s.get('title')),entry['kind'])
+        self.diary.feedback(who,'local:'+entry_id,topic,value,{'kind':'local_owner_review','id':entry_id})
+        return {'saved':True,'sent':False}
     def state(self):
         who=self.scope();cfg=self.config();notes=self.memory.list_notes(who)
         with self.memory.db() as db:jobs=[dict(r) for r in db.execute('SELECT id,kind,at,state,query,detail FROM jobs WHERE peer=? ORDER BY at DESC LIMIT 18',(who,))]
         return {'contact':'long','config':cfg,'busy':self.gate.locked(),'service_running':bool(self.thread and self.thread.is_alive()),'last_error':self.last_error,
             'memories':notes,'activities':self.memory.activities(who,limit=12),'jobs':jobs,'stats':{'active':sum(r['status']=='active' and (not r['expires'] or r['expires']>self.clock()) for r in notes),'pending':sum(r['status']=='pending' for r in notes)},
-            'automatic_send':False,'mcp_installed':(self.root/'.autonomy-runtime/Scripts/python.exe').exists(),'window':'09:00–22:00（北京时间）'}
+            'automatic_send':False,'mcp_installed':(self.root/'.autonomy-runtime/Scripts/python.exe').exists(),
+            'window':' / '.join(w['start']+'–'+w['end'] for w in validate_rhythm(cfg))+'（北京时间）',
+            'rhythm':self.rhythm.snapshot(who,cfg,bool(self.thread and self.thread.is_alive())),
+            'diaries':self.diary.list(who),'feedback':self.diary.preferences(who)}
     def start(self):
         if self.thread and self.thread.is_alive():return
         def run():
             while not self.exit.wait(60):
                 try:self.tick()
-                except Exception as exc:self.last_error=str(exc)[:180]
+                except Exception as exc:
+                    self.last_error=str(exc)[:180]
+                    try:self.rhythm.heartbeat(self.scope(),'本轮调度未完成，请检查后台活动记录。')
+                    except Exception:pass
         self.thread=threading.Thread(target=run,name='companion-life',daemon=True);self.thread.start()
     def close(self):
         self.exit.set();self.cancelled.set()

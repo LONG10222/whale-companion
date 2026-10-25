@@ -15,8 +15,15 @@ class LifeConfig(BaseModel):
     interval_minutes:int=Field(default=30,ge=15,le=240)
     daily_activities:int=Field(default=2,ge=1,le=4)
     topics:list[str]=Field(min_length=1,max_length=6)
+    bilibili:bool=True
+    windows:list[dict]|None=None
+    skip_chance:float=Field(default=.3,ge=0,le=1)
 class NoteStatus(BaseModel):status:Literal['active','disabled','pending']
 class Recall(BaseModel):query:str=Field(min_length=1,max_length=160)
+class DiaryFeedback(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    entry_id:str=Field(min_length=1,max_length=180)
+    value:Literal[-1,1]
 
 def register_life_routes(app,*,root,authorize,bridge,proactive):
     root=Path(root);service=CompanionLife(root,bridge,proactive)
@@ -32,7 +39,9 @@ def register_life_routes(app,*,root,authorize,bridge,proactive):
     @router.get('/state')
     def state():return call(service.state)
     @router.post('/config')
-    def config(body:LifeConfig):return {'saved':True,'config':call(lambda:service.configure(body.model_dump()))}
+    def config(body:LifeConfig):return {'saved':True,'config':call(lambda:service.configure(body.model_dump(exclude_none=True)))}
+    @router.post('/diaries/feedback')
+    def feedback(body:DiaryFeedback):return call(lambda:service.feedback(body.entry_id,body.value))
     @router.post('/learn')
     def learn():return call(service.learning_once)
     @router.post('/activity')

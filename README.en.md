@@ -44,7 +44,7 @@ Later, use the desktop **Whale Companion** shortcut or **Start.cmd**. Running se
 | Speech and singing | Optional speech models, score-driven singing, pitch stabilization and conversion; requires permitted models, runtimes and references |
 | Drawing and photo editing | Your Codex account; source-image ownership, main edit, lower-cost review, bounded repair and inspection of actual candidates |
 | Public research | Public HTTPS checks, bounded responses, source links and partial results; normally summarized with Luna |
-| Bilibili extension | Separate login, actual subtitle reads and sharing; administrator-only, with separate public-action settings and confirmation for comments/coins |
+| Bilibili and autonomous life | Persistent rhythm, bounded source-aware reading, timed evidence, two local diaries and feedback; optional reviewed inbox replies. See [scope and limits](docs/BILIBILI_LIFE.md) |
 | Proactive chat | DeepSeek chooses whether to speak and what to discuss; current information and completed reading activities can supply topics, subject to timing and no-follow-up rules |
 | Controlled workbench | Create or resume named work chats in the bound project, record actual status and recoverable archives; the model cannot expand permissions |
 | Usage and maintenance | Official balances, reported tokens and task/financial events; update notices, owner-click upgrades, backups and failed-start rollback |

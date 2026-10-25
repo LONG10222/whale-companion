@@ -39,3 +39,5 @@ The wizard lists these 21 capability families. Selection, dependency readiness a
 Hardware profiles only change bounded local resource settings. They cannot expand roles, remove query limits, or grant cloud accounts. Missing optional models remain pending. Loading and release happen on demand; changing a preset does not interrupt an active audio task. The current CUDA workers use GPU index 0; multi-GPU operators should configure their actual runtime accordingly.
 
 微信、Qzone、自动加好友不作为已验收功能列入；已取消的桌宠和日常手机信息采集不提供启用项。
+
+B站自主生活扩展：在 /qq/life 保存作息与阅读反馈，在 /qq/bilibili/listeners 指定真实B站目标并审核回复。已有网页扫码登录会复用，QQ身份不会被当作B站mid。详细配置和未达上游能力见 [BILIBILI_LIFE.md](BILIBILI_LIFE.md)。
