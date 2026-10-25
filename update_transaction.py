@@ -23,7 +23,10 @@ def database_state(root):
     if not data.is_dir():return result
     for path in data.rglob('*'):
         relative=path.relative_to(root).as_posix()
-        if any(p in {'update-backups','update-staging','read-snapshots','account-backups'} for p in path.parts):continue
+        # The dedicated QQ client is deliberately kept alive during an app
+        # update. Its own databases are neither application state nor rollback
+        # targets and may legitimately change while our services are stopped.
+        if path.relative_to(data).parts[0] in {'update-backups','update-staging','read-snapshots','account-backups','qq-client'}:continue
         if path.is_file() and (path.suffix in {'.sqlite','.sqlite3','.db'} or path.name.endswith(('.sqlite-wal','.sqlite3-wal','.db-wal'))):
             result[relative]=digest(destination(root,relative))
     return result

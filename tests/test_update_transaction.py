@@ -57,4 +57,14 @@ class TransactionTests(unittest.TestCase):
             root,backup,stage,transaction=self.fixture(folder);transaction.finish('succeeded')
             with self.assertRaises(ValueError):transaction.recover()
 
+    def test_independent_qq_client_data_is_not_a_rollback_target_or_guard(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root,backup,stage,transaction=self.fixture(folder)
+            folder=root/'data/qq-client';folder.mkdir()
+            qq=folder/'client.db';qq.write_bytes(b'new independent QQ state')
+            (root/'phone_server.py').write_text('new phone_server.py')
+            self.assertTrue(transaction.recover())
+            self.assertEqual(qq.read_bytes(),b'new independent QQ state')
+            self.assertEqual((root/'phone_server.py').read_text(),'old phone_server.py')
+
 if __name__=='__main__':unittest.main()
