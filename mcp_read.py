@@ -1,31 +1,18 @@
-"""One owned, bounded MCP worker per read; shuts down after each use."""
+"""Public page reads use one pinned HTTPS boundary, including legacy MCP settings."""
 from pathlib import Path
-import json,os,subprocess
+import json
+
 
 def fetch(root,url):
-    from agent_web import validate_public_url,read_web_page
-    validate_public_url(url)
-    root=Path(root)
-    config=root/'configs/web-tools.local.json'
+    from agent_web import read_web_page
+    config=Path(root)/'configs/web-tools.local.json'
     settings=json.loads(config.read_text(encoding='utf-8')) if config.exists() else {}
-    if settings.get('reader','builtin')=='builtin':
-        return {**read_web_page(url),'provider':'bounded public HTTPS reader','tools_discovered':['read_page']}
-    if settings.get('reader')!='mcp':raise ValueError('未知网页读取方式。')
-    python=root/'.autonomy-runtime'/('Scripts/python.exe' if os.name=='nt' else 'bin/python')
-    if not python.exists():raise ValueError('MCP网页工具尚未安装。')
-    process=subprocess.Popen([str(python),'-X','utf8',str(root/'mcp_fetch_worker.py')],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,
-        text=True,encoding='utf-8',cwd=root,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
-    try:
-        output,_=process.communicate(json.dumps({'url':url})+'\n',timeout=32)
-        result=json.loads(output)
-        if not result.get('ok'):raise ValueError(result.get('error','MCP读取失败。'))
-        return result
-    finally:
-        if process.poll() is None:
-            import psutil
-            try:children=psutil.Process(process.pid).children(recursive=True)
-            except psutil.Error:children=[]
-            for child in reversed(children):
-                try:child.kill()
-                except psutil.Error:pass
-            process.kill();process.communicate()
+    requested=settings.get('reader','builtin')
+    if requested not in {'builtin','mcp'}:raise ValueError('未知网页读取方式。')
+    result={**read_web_page(url),'provider':'bounded public HTTPS reader with pinned addresses',
+            'reader_requested':requested,'reader_effective':'builtin_pinned_https',
+            'mcp_called':False,'tools_discovered':[],'available_tools':['read_page']}
+    if requested=='mcp':
+        result['safe_fallback']=True
+        result['fallback_reason']='外部MCP网页客户端不能绑定已验证地址，本次由受控HTTPS读取器获取网页。'
+    return result

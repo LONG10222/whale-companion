@@ -11,7 +11,7 @@ def register_maintenance_guard(app, root):
     async def maintenance(request, call_next):
         progress = read(root / 'data/setup/update-progress.local.json', {})
         if request.method not in {'GET', 'HEAD', 'OPTIONS'} and progress.get('phase') in {
-                'switching', 'validating', 'rolling_back'}:
+                'switching', 'validating', 'rolling_back', 'recovery_required'}:
             route = request.url.path
             allowed = route in {'/local/session', '/updates/check', '/updates/apply'}
             if route in {'/qq/config', '/admin/unload'}:

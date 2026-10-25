@@ -23,10 +23,11 @@ class ConvertRequest(BaseModel):
 
 class SpeakRequest(BaseModel):
     text:str=Field(min_length=1,max_length=120)
+    voice:Literal['dania','vivian','serena','dylan','zh-3','zh-12']='dania'
 
 def register_music_routes(app,*,authorize,lock,unload,root,synthesize):
     service=MusicService(root,lock,unload)
-    @app.get('/music/status')
+    @app.get('/music/status',dependencies=[Depends(authorize)])
     def status():return service.status()
     @app.post('/music/cancel',dependencies=[Depends(authorize)])
     def cancel():return service.cancel()
@@ -52,7 +53,8 @@ def register_music_routes(app,*,authorize,lock,unload,root,synthesize):
         except RuntimeError as exc:raise HTTPException(503,str(exc))
     @app.post('/v1/music/speak',dependencies=[Depends(authorize)])
     def speak(request:SpeakRequest):
-        data,metrics=synthesize(request.text)
+        data,metrics=synthesize(request.text,request.voice)
+        metrics={**metrics,'voice':request.voice}
         artifact_id=uuid.uuid4().hex
         (service.artifacts/(artifact_id+'.wav')).write_bytes(data)
         return service.save_metadata(artifact_id,{'kind':'speech','metrics':metrics,'title':'聊天语音'})

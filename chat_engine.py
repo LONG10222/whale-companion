@@ -4,6 +4,18 @@ from collections import deque
 import hashlib,json,re,threading,time
 from urllib.parse import urlsplit
 
+NATIVE_TURN_TIMEOUT_SECONDS=55.0
+NATIVE_CLIENT_TIMEOUT_SECONDS=NATIVE_TURN_TIMEOUT_SECONDS+5.0
+
+
+def bounded_facts(items, limit=16000):
+    """Keep complete, prioritized evidence records instead of slicing JSON."""
+    selected=[]
+    for item in items:
+        candidate=json.dumps([*selected,item],ensure_ascii=False)
+        if len(candidate)<=limit:selected.append(item)
+    return json.dumps(selected,ensure_ascii=False)
+
 
 def source_information(root):
     root=Path(root)
@@ -105,7 +117,7 @@ class ChatEngine:
         identity=actor(peer);scope=(context or {}).get('bot','local-preview')
         key=hashlib.sha256((str(scope)+'|'+str(peer)).encode()).hexdigest()
         recent=getattr(chat.memory,'active_recent',chat.memory.recent)
-        rows=recent(peer,16)
+        rows=recent(peer,24)
         if (context or {}).get('_native_current_recorded') and rows and rows[-1][0]=='user' and rows[-1][1]==text:rows=rows[:-1]
         seed=[];size=0
         for role,value in reversed(rows):
@@ -114,24 +126,38 @@ class ChatEngine:
             if size+length>16000:break
             seed.insert(0,item);size+=length
         facts=[{'deployment_facts':{'dialogue_kernel':'AstrBot 4.29.1','chat_model':'DeepSeek API','qq_gateway':'NapCat / OneBot / 本地QQBridge','execution':'既有受控工具；管理员、Plus、普通用户权限不变','computer_tools_in_astrbot':False}}]
+        persona=chat.persona.load()
+        original=persona.model_dump()
+        enabled=original.get('enabled',True) is True
+        card={'enabled':enabled}
+        if enabled:
+            card.update({k:original.get(k,'') for k in ['name','description','personality','scenario','style']})
+            from social_examples import select_examples
+            card['examples']=[entry.model_dump() for entry in select_examples(getattr(persona,'examples',[]),text,limit=3,
+                avoid_replies=[value for role,value in rows[-8:] if role=='assistant'])]
+            if hasattr(chat,'learning'):
+                learned,selected=chat.learning.prompt(peer,text,persona)
+                if selected:facts.append({'approved_learning':learned['content']})
+        life=getattr(chat.memory,'life',None)
+        if life:
+            learned_life=life.prompt(peer,text)
+            if learned_life:facts.append({'source_backed_memories':learned_life['content']})
         profile=chat.memory.profile(peer)
         if profile:facts.append({'approved_profile':profile})
         if re.search('记得|以前|上次|之前|忘了',text):facts.append({'recalled':chat.memory.recall(peer,text)})
         try:
             if chat.creative and re.search('任务|结果|进度|前面|刚才|之前|做好|做完|修|唱|拿来|传来|成片',text):facts.append({'work_records':[j for j in chat.creative.prompt_context(peer) if j.get('delivery')!='preview'][:3]})
         except Exception:pass
-        facts.append({'channel':'group' if group(peer) else 'private','recent_real_messages':seed[-6:]})
-        original=chat.persona.load().model_dump()
-        card={k:original.get(k,'') for k in ['name','description','personality','scenario','style']}
-        card['examples']=original.get('examples',[])[:3]
-        lore=[e.get('content','') for e in original.get('lorebook',[]) if e.get('enabled',True) and (e.get('constant') or any(key and key in text for key in e.get('keys',[])))]
-        if lore:facts.insert(1,{'character_background_only':lore[:3]})
+        facts.append({'channel':'group' if group(peer) else 'private'})
+        lore=[e.get('content','') for e in original.get('lorebook',[]) if enabled and e.get('enabled',True) and
+              (e.get('constant') or any(key and key.casefold() in text.casefold() for key in e.get('keys',[])))]
+        if lore:facts.append({'character_background_only':lore[:3]})
         payload={'session_key':key,'text':text,'persona':card,'seed_history':seed,
-                 'facts':json.dumps(facts,ensure_ascii=False)[:7000],
+                 'facts':bounded_facts(facts),
                  'ledger_peer':str(peer),'ledger_role':chat.contacts.role(identity) if str(identity).isdigit() else 'preview',
                  'display_name':str(chat.contacts.label(identity))[:80] if str(identity).isdigit() else '本地预览'}
         try:
-            with httpx.Client(trust_env=False,headers=self.headers(),timeout=35) as client:
+            with httpx.Client(trust_env=False,headers=self.headers(),timeout=NATIVE_CLIENT_TIMEOUT_SECONDS) as client:
                 response=client.post(f'http://127.0.0.1:{cfg["port"]}/v1/converse',json=payload);response.raise_for_status();result=response.json()
             if result.get('route'):return None
             reply=str(result.get('reply','')).strip()

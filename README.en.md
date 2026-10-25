@@ -18,6 +18,9 @@ The repository contains application source, configuration templates and design n
 
 > Downloads, verified scope and known issues are listed in [Releases](https://github.com/LONG10222/whale-companion/releases). The main branch may contain work awaiting release checks.
 
+
+New optional features: distinct speaking voices, exact quoted/previous-message readback, answers by voice and short a cappella arrangement. See [voice and melody](docs/VOICE_AND_MELODY.md). Local audio models require separate setup and are not bundled with basic installation.
+
 ## Get started
 
 1. Download `WhaleCompanion-vVERSION-windows-x64.zip` from an official release and extract the whole folder.

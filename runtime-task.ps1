@@ -1,4 +1,4 @@
-# Keep the runtime independent of the temporary launcher and terminal.
+﻿# Keep the runtime independent of the temporary launcher and terminal.
 $ErrorActionPreference='Stop'
 function Get-WhaleRuntimeTaskName([string]$Root) {
     $taskHash=[Security.Cryptography.SHA256]::Create()
@@ -50,7 +50,27 @@ function Start-WhaleRuntime([string]$Root,[switch]$EnsureOnly) {
         @{desired='running';at=[DateTime]::UtcNow.ToString('o')} | ConvertTo-Json | Set-Content -LiteralPath ($taskControl+'.tmp') -Encoding UTF8
         Move-Item -LiteralPath ($taskControl+'.tmp') -Destination $taskControl -Force
     }
+    Register-WhaleResume -Root $taskRoot
     if($taskExisting -and $taskExisting.State-eq'Running'){return 'running'}
     Start-ScheduledTask -TaskName $taskName
     return 'started'
+}
+
+function Register-WhaleResume([string]$Root) {
+    $resumeName=(Get-WhaleRuntimeTaskName $Root)+'-Resume'
+    $resumeExecutable=Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/powershell.exe'
+    $resumeArguments='-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "'+(Join-Path $Root 'resume-whale.ps1')+'" -Root "'+$Root+'"'
+    $resumeExisting=Get-ScheduledTask -TaskName $resumeName -ErrorAction SilentlyContinue
+    if($resumeExisting){
+        $resumeActions=@($resumeExisting.Actions)
+        if($resumeActions.Count-ne1 -or $resumeActions[0].Execute-ne$resumeExecutable -or $resumeActions[0].Arguments-ne$resumeArguments){throw '同名恢复任务属于其他配置，未覆盖。'}
+        return
+    }
+    $resumeSubscription='<QueryList><Query Id="0" Path="System"><Select Path="System">*[System[Provider[@Name="Microsoft-Windows-Power-Troubleshooter"] and EventID=1]]</Select></Query></QueryList>'
+    $resumeTrigger=New-CimInstance -Namespace 'Root/Microsoft/Windows/TaskScheduler' -ClassName 'MSFT_TaskEventTrigger' -ClientOnly -Property @{Enabled=$true;Subscription=$resumeSubscription;Delay='PT20S'}
+    $resumeTrigger.PSTypeNames.Add('Microsoft.Management.Infrastructure.CimInstance#MSFT_TaskTrigger')
+    $resumeAction=New-ScheduledTaskAction -Execute $resumeExecutable -Argument $resumeArguments -WorkingDirectory $Root
+    $resumePrincipal=New-ScheduledTaskPrincipal -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -LogonType Interactive -RunLevel Limited
+    $resumePolicy=New-ScheduledTaskSettingsSet -Hidden -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 5) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+    Register-ScheduledTask -TaskName $resumeName -Action $resumeAction -Principal $resumePrincipal -Trigger $resumeTrigger -Settings $resumePolicy -Description '睡眠恢复后仅按上次运行意愿恢复本安装，尊重暂停和联网前置检查；不唤醒电脑。' | Out-Null
 }

@@ -1,8 +1,8 @@
 """Bounded public web search/read tools. Returned content is untrusted reference data."""
-import html,ipaddress,json,re,socket,urllib.parse,urllib.request,urllib.error
+import base64,html,http.client,ipaddress,json,re,socket,time,urllib.parse,urllib.request,urllib.error
 from html.parser import HTMLParser
 
-def validate_public_url(url):
+def _public_target(url):
     parsed=urllib.parse.urlsplit(url)
     if parsed.scheme!='https' or not parsed.hostname or parsed.username or parsed.password:
         raise ValueError('Only public HTTPS pages are supported')
@@ -10,15 +10,83 @@ def validate_public_url(url):
     addresses=socket.getaddrinfo(parsed.hostname,443,type=socket.SOCK_STREAM)
     if not addresses or any(not ipaddress.ip_address(x[4][0]).is_global for x in addresses):
         raise ValueError('Local/private network addresses are not web sources')
+    return parsed.hostname.encode('idna').decode('ascii'),addresses
+
+def validate_public_url(url):
+    _public_target(url)
     return url
+
+def _local_http_proxy(hostname):
+    value=urllib.request.getproxies().get('https','')
+    if not value or urllib.request.proxy_bypass(hostname):return None
+    parsed=urllib.parse.urlsplit(value if '://' in value else 'http://'+value)
+    if parsed.scheme!='http' or not parsed.hostname:
+        raise ValueError('Public page reading supports a configured local HTTP proxy only')
+    addresses=socket.getaddrinfo(parsed.hostname,parsed.port or 80,type=socket.SOCK_STREAM)
+    if not addresses or any(not ipaddress.ip_address(a[4][0]).is_loopback for a in addresses):
+        raise ValueError('The configured web proxy is not a local loopback HTTP proxy')
+    headers={}
+    if parsed.username is not None:
+        credential=urllib.parse.unquote(parsed.username)+':'+urllib.parse.unquote(parsed.password or '')
+        headers['Proxy-Authorization']='Basic '+base64.b64encode(credential.encode()).decode('ascii')
+    return addresses,headers
+
+def _connect_address(address,timeout):
+    family,kind,protocol,_,sockaddr=address
+    stream=socket.socket(family,kind,protocol)
+    try:
+        stream.settimeout(timeout);stream.connect(sockaddr)
+        return stream
+    except BaseException:
+        stream.close();raise
+
+class _PinnedHTTPSConnection(http.client.HTTPSConnection):
+    """TLS checks the original domain; TCP/CONNECT uses only an approved address."""
+    def __init__(self,hostname,address,proxy,*,timeout,context=None,check_hostname=None):
+        super().__init__(hostname,port=443,timeout=timeout,context=context)
+        self.target_address=address;self.local_proxy=proxy
+    def connect(self):
+        deadline=time.monotonic()+self.timeout
+        if self.local_proxy:
+            addresses,proxy_headers=self.local_proxy;last=None
+            ip=self.target_address[4][0];authority='['+ip+']' if ':' in ip else ip
+            self.set_tunnel(ip,443,headers={**proxy_headers,'Host':authority+':443'})
+            for address in addresses:
+                try:
+                    self.sock=_connect_address(address,max(.1,deadline-time.monotonic()));break
+                except OSError as exc:last=exc
+            if self.sock is None:raise last or OSError('Local proxy unavailable')
+            self._tunnel()
+        else:self.sock=_connect_address(self.target_address,max(.1,deadline-time.monotonic()))
+        try:
+            self.sock.settimeout(max(.1,deadline-time.monotonic()))
+            self.sock=self._context.wrap_socket(self.sock,server_hostname=self.host)
+        except BaseException:
+            self.close();raise
+
+class _PinnedHTTPSHandler(urllib.request.HTTPSHandler):
+    def __init__(self,hostname,addresses,proxy):
+        super().__init__();self.hostname=hostname;self.addresses=addresses;self.proxy=proxy
+    def https_open(self,request):
+        deadline=time.monotonic()+request.timeout;last=None
+        for address in self.addresses[:8]:
+            remaining=deadline-time.monotonic()
+            if remaining<=0:break
+            def connection(_host,timeout,**kwargs):
+                return _PinnedHTTPSConnection(self.hostname,address,self.proxy,timeout=remaining,**kwargs)
+            try:return self.do_open(connection,request,context=self._context)
+            except (OSError,urllib.error.URLError) as exc:last=exc
+        raise last or urllib.error.URLError('Public page connection timed out')
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self,*args,**kwargs):return None
 
 def public_get(url):
-    opener=urllib.request.build_opener(NoRedirect)
     for _ in range(5):
-        validate_public_url(url)
+        hostname,addresses=_public_target(url)
+        proxy=_local_http_proxy(hostname)
+        opener=urllib.request.build_opener(urllib.request.ProxyHandler({}),NoRedirect,
+            _PinnedHTTPSHandler(hostname,addresses,proxy))
         request=urllib.request.Request(url,headers={'User-Agent':'DeepseekCompanion/1.0 (local personal research tool)'})
         try:
             with opener.open(request,timeout=25) as response:

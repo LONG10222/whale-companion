@@ -21,13 +21,13 @@ def named_song(text):
 
 def original_song_requested(song,text):
     if re.search(r'(?:不要|别|不用|不想).{0,3}原创',text):return False
-    return '原创' in song or '原创' in text
+    return '原创' in song or '原创' in text or bool(re.search(r'唱出来|唱这|唱那|这.{0,4}唱|编.{0,6}(?:调|旋律)|加.{0,6}(?:调|旋律)',text))
 def sing_intent(text):
     from dialogue_context import plain_text,turn_kind
     text=plain_text(text)
     if turn_kind(text)=='correction' or re.search(r'(?:不要|别|不用|不是让|没让|没有让).{0,4}唱',text):return False
     named=bool(re.fullmatch(r'(?:请|快|再|那就|给我|帮我|麻烦你)?唱(?:《[^》]{1,60}》|[^？?，,。！!\n]{1,40})[。！!\s]*',text))
-    return bool(named or re.search('唱歌|唱哥|唱[一首个段两几]|清唱|给我唱|你唱|唱春晓|唱春曉|我要听歌|想听歌|你倒是唱',text))
+    return bool(named or re.search('唱歌|唱哥|唱[一首个段两几]|清唱|给我唱|你唱|唱春晓|唱春曉|唱出来|编.{0,6}(?:调|旋律)|我要听歌|想听歌|你倒是唱',text))
 def draw_intent(text):
     from dialogue_context import plain_text,turn_kind
     text=plain_text(text)

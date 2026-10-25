@@ -20,7 +20,7 @@
       $('upgrade').disabled = !state.can_upgrade || active.includes(state.progress.phase);
       $('release-notes').hidden = !state.release;
       if (state.release) $('release-notes').href = state.release.release_url;
-      $('update-owner-note').textContent = state.can_upgrade?'':'此安装尚未由新版安装器接管，仅提供新版提醒；不会覆盖现有个人实例。';
+      $('update-owner-note').textContent = state.needs_recovery?'上次升级已中断，请先恢复本机备份。':state.can_upgrade?'':'此安装尚未由新版安装器接管，仅提供新版提醒；不会覆盖现有个人实例。';
     } else if (state.available) {
       let banner = $('whale-update-notice');
       if (!banner) { banner=document.createElement('p');banner.id='whale-update-notice';banner.setAttribute('role','status');document.body.prepend(banner); }

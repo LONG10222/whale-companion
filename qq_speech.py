@@ -3,45 +3,68 @@ from pathlib import Path
 import re,uuid,wave
 
 def speech_request(text):
-    """Only the current request authorizes speech; talking about audio is insufficient."""
-    negative=re.search(r'(?:不要|不用|别|不必|不需要).{0,5}(?:发语音|语音回复|朗读|读出来|念出来|读给|念给)',text)
-    if re.search(r'语音.{0,8}(?:转成|转为|转|变成)(?:文字|文本)|(?:转写|转录|识别|听写).{0,10}语音',text) and not re.search(r'再.{0,8}(?:发语音|读出来|念出来)',text):return {'requested':False,'read_exact':False,'literal':''}
-    read=bool(re.search(r'朗读|(?:读|念).{0,5}(?:出来|一下|一遍|给我|给你听)|(?:读|念)[给一这那]|复刻.{0,8}(?:语音|声音)|不是[，,、\s]*(?:发|用)语音',text))
-    reference=bool(re.search(r'(?:原文|原话|文字|这段|这句|这个|这条|这些|上面|刚才).{0,16}(?:语音|声音)',text) and re.search('发|转|读|念|按照|改成|换成|复刻',text))
-    read=read or reference
-    voice=bool(re.search(r'(?:发|用|转成|转为|生成|合成|做成|换成|来条|来一条).{0,8}(?:语音|声音|配音)|(?:语音|声音).{0,8}(?:发给|发我|回复|读|念|来一条)|^语音.{0,3}(?:说|讲)|说一句|说句话',text))
-    if negative:return {'requested':False,'read_exact':False,'literal':''}
-    if re.search(r'(?:不要|不用|别).{0,4}(?:复刻|照读|照着读|读原文)',text):read=False
-    # A read-aloud correction takes precedence over a stale singing discussion.
-    if re.search(r'唱歌|清唱|唱一|唱个|给我唱|你唱',text) and not read:return {'requested':False,'read_exact':False,'literal':''}
+    """Resolve delivery mode from current words, not from quoted commands or old intent."""
+    from voice_catalog import select_voice
+    voice=select_voice(text)
+    command=re.sub(r'[“「『"]([^”」』"]+)[”」』"]', '',text)
+    command=re.split(r'[：:]',command,maxsplit=1)[0]
+    result={'requested':False,'read_exact':False,'literal':'','voice':voice,'mode':'none'}
+    if re.search(r'(?:不要|不用|别|不必|不需要).{0,6}(?:发语音|语音回复|用语音|朗读|读出来|念出来|读给|念给)',command):return result
+    if re.search(r'这条语音说的|语音说了什么|语音什么意思',command):return result
+    if re.search(r'语音.{0,8}(?:转成|转为|转|变成)(?:文字|文本)|(?:转写|转录|识别|听写).{0,10}语音',command) and not re.search(r'再.{0,8}(?:发语音|读出来|念出来)',command):return result
+    read=bool(re.search(r'朗读|(?:读|念).{0,5}(?:出来|一下|一遍|给我|给你听)|(?:读|念)[给一这那]|复刻.{0,12}(?:语音|声音)|不是[，,、\s]*(?:发|用)语音',command))
+    refer=bool(re.search(r'原文|原话|引用|你.{0,4}(?:刚才|上一|之前)|我.{0,4}(?:刚才|上一)|我的话|我说的|你说的|你发的|这段|这句|这个|这条|这些|上面|上条|上句|上段|刚刚|刚才',command))
+    audio=bool(re.search(r'语音|声音|配音',command))
+    read=read or refer and audio and bool(re.search(r'发|转|读|念|按照|改成|换成|复刻|复述|重说|再说|说|讲',command))
+    voice_requested=bool(re.search(r'(?:发|用|转成|转为|生成|合成|做成|换成|来条|来一条).{0,8}(?:语音|声音|配音)|(?:语音|声音).{0,8}(?:发给|发我|回复|回答|读|念|说|来一条)|^语音.{0,3}(?:说|讲)|说一句|说句话',command))
+    if re.search(r'(?:不要|不用|别).{0,4}(?:复刻|复述|照读|照着读|读原文)',command):read=False
+    if re.search(r'唱歌|清唱|唱一|唱个|给我唱|你唱|唱出来',command) and not read:return result
+    if not (read or voice_requested):return result
     literal=''
-    if read or voice:
+    # Literal payload is used only with a reading/saying request. An answer request
+    # such as “语音回答这个问题：…” must answer, not echo the question.
+    answer=bool(re.search(r'回答|回复|解释|告诉我|为什么|怎么办',command)) and not read
+    if not answer:
         matches=re.findall(r'[“「『"]([^”」』"]+)[”」』"]',text,re.S)
         if matches:literal=matches[-1].strip();read=True
-        elif read:
+        else:
             colon=re.search(r'[：:]\s*(\S[\s\S]*)$',text)
-            if colon:literal=colon.group(1).strip()
-    return {'requested':read or voice,'read_exact':read,'literal':literal}
+            if colon:literal=colon.group(1).strip();read=True
+    result.update(requested=True,read_exact=read,literal=literal,mode='read' if read else 'answer')
+    return result
+
+
+def speakable(text):
+    """Remove transport wrappers; keep words, numbers and punctuation untouched."""
+    text=re.sub(r'\[CQ:[^\]]*\]', '',text)
+    text=re.sub(r'\[QQ表情[：:][^\]]*\]', '',text)
+    text=re.sub(r'!\[[^\]]*\]\([^)]*\)', '',text)
+    text=text.split('\n[本轮')[0].split('\n[本条QQ')[0].strip()
+    if not text:raise ValueError('这条里没有能朗读的文字，发一句文字或引用语音的转写给我吧。')
+    return text
+
 
 def read_target(request,text,recent,quoted=None,descriptions=None):
-    if request['literal']:return request['literal'],'literal'
-    if quoted is not None and quoted.get('kind')=='image':
+    if request['literal']:return speakable(request['literal']),'literal'
+    if quoted is not None and quoted.get('kind')=='image' and quoted.get('pixels_bound'):
         found='\n'.join(d.get('text','').strip() for d in descriptions or [] if isinstance(d,dict) and isinstance(d.get('text'),str) and d.get('text','').strip())
         if found:return found,'quoted_image_text'
     if quoted is not None:
-        if quoted.get('text'):return quoted['text'],'quoted'
+        if quoted.get('text'):return speakable(quoted['text']),'quoted'
         raise ValueError('没取到你引用的那段原文，重新引用那条文字消息，我就读给你听。')
     if re.search('图|里面|里边|这里面',text):
         found='\n'.join(d.get('text','').strip() for d in descriptions or [] if isinstance(d,dict) and isinstance(d.get('text'),str) and d.get('text','').strip())
         if found:return found,'image_text'
         raise ValueError('把要读的文字发来，或者引用那条文字消息，我就按原文念。')
-    role='user' if re.search('我刚才|我说的|我的话|我发的|我上[一句段条]',text) else 'assistant'
-    for speaker,content in reversed(recent):
+    role='user' if re.search('我刚才|我说的|我的话|我发的|我上[一句段条]|我上一[句段条]',text) else 'assistant'
+    for row in reversed(recent):
+        speaker,content=row[:2]
+        if len(row)>3 and row[3]=='task':continue
         if speaker!=role:continue
         content=content.split('\n[本轮')[0].strip()
         if content.startswith('[已发送') or not content:continue
         if re.search('语音.{0,8}(?:没|失败|报错)|没.{0,5}合成|后台报错|本轮没识别',content):break
-        return content,'previous_'+role
+        return speakable(content),'previous_'+role
     raise ValueError('引用一下你想让我念的那段话，我就按原文读，不会擅自改写。')
 
 def chunks(text,limit=100):

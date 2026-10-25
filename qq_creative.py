@@ -43,9 +43,12 @@ class CreativeJobs:
             key='history:'+row['id']
             if key not in logged:self.ledger.record('historical_task',event_key=key,at=row['at'],peer=row['peer'],job_id=row['id'],model=row['model'],effort=row['effort'],state=row['state'],details={'kind':row['kind'],'note':'从已有任务数据库补录；未返回的费用和Token不推算。'})
         bridge.chat.creative=self
+        self.deadline_clock=time.time
+        self.deadline_thread=threading.Thread(target=self._watch_query_deadlines,name='whale-query-deadlines',daemon=True)
+        self.deadline_thread.start()
     @contextmanager
-    def db(self):
-        db=sqlite3.connect(self.path,timeout=12);db.row_factory=sqlite3.Row
+    def db(self,timeout=12):
+        db=sqlite3.connect(self.path,timeout=timeout);db.row_factory=sqlite3.Row
         try:
             with db:yield db
         finally:db.close()
@@ -65,6 +68,62 @@ class CreativeJobs:
         if set(values)-allowed:raise ValueError('Invalid job fields')
         values['updated']=time.time()
         with self.db() as db:db.execute('UPDATE jobs SET '+','.join(k+'=?' for k in values)+' WHERE id=?',list(values.values())+[jid])
+    def _queue_delivery(self,jid,memory_peer):
+        if self.stop.is_set():return
+        try:
+            pool=self.bridge.channel_pool(memory_peer) if hasattr(self.bridge,'channel_pool') else self.bridge.pool
+            pool.submit(self.deliver,jid)
+        except RuntimeError:pass
+    def _expire_queued_row(self,db,row,now):
+        from qq_research import EMPTY
+        args=json.loads(row['args']);flag=self.cancels.get(row['id'])
+        if row['kind']!='lookup_web' or not args.get('_query_timeout_seconds',300) or now<row['at']+300 or flag and flag.is_set():return None
+        result={'text':EMPTY,'attachments':[],'metadata':{'timed_out':True,'queued_timeout':True,'partial':False,'sources':[],
+            'model':'gpt-6-luna','service_tier':'default','summary_mode':'no_reliable_result'}}
+        changed=db.execute("UPDATE jobs SET state='completed',result=?,error='',updated=? WHERE id=? AND state='accepted'",
+            (json.dumps(result,ensure_ascii=False),now,row['id'])).rowcount
+        return (dict(row),args) if changed else None
+    def expire_queued_queries(self,job_id=None):
+        """Settle queued deadlines independently of the occupied work executor."""
+        if self.stop.is_set():return []
+        now=self.deadline_clock();finished=[]
+        with self.db(timeout=.2) as db:
+            rows=db.execute("SELECT * FROM jobs WHERE kind='lookup_web' AND state='accepted'"+(' AND id=?' if job_id else ''),[job_id] if job_id else []).fetchall()
+            for row in rows:
+                expired=self._expire_queued_row(db,row,now)
+                if expired:finished.append(expired)
+        self._announce_expired_queries(finished,now)
+        return [row['id'] for row,_ in finished]
+    def _announce_expired_queries(self,finished,now):
+        for row,args in finished:
+            flag=self.cancels.pop(row['id'],None)
+            if self.stop.is_set():continue
+            try:
+                self.ledger.record('task_finished',event_key='task:'+row['id']+':finished',peer=row['peer'],job_id=row['id'],
+                    model=args.get('model','gpt-6-luna'),effort=args.get('effort','low'),state='timed_out',duration=max(0,now-row['at']),
+                    details={'kind':'lookup_web','summary_mode':'no_reliable_result','source_count':0,'queued_timeout':True})
+            except Exception:pass  # A busy usage ledger must not postpone the timeout response.
+            if flag and flag.is_set():self.update(row['id'],delivery='suppressed')
+            elif row['deliver']:self._queue_delivery(row['id'],args.get('_memory_peer',row['peer']))
+    def _watch_query_deadlines(self):
+        last_error=0
+        while not self.stop.wait(.5):
+            try:self.expire_queued_queries()
+            except Exception:
+                if not self.stop.is_set() and time.monotonic()-last_error>=60:
+                    last_error=time.monotonic()
+                    try:self.bridge.event('query_deadline_error','排队查询期限检查暂未完成，诊断记录留在本机。')
+                    except Exception:pass
+    def _claim_work(self,jid):
+        with self.db() as db:
+            # The normal bounded write-lock wait also covers the deadline decision.
+            db.execute('BEGIN IMMEDIATE')
+            row=db.execute('SELECT * FROM jobs WHERE id=?',(jid,)).fetchone()
+            if not row or row['state']!='accepted':return False
+            now=self.deadline_clock();expired=self._expire_queued_row(db,row,now)
+            claimed=False if expired else bool(db.execute("UPDATE jobs SET state='running',updated=? WHERE id=? AND state='accepted'",(time.time(),jid)).rowcount)
+        if expired:self._announce_expired_queries([expired],now)
+        return claimed
     def native_progress(self,jid,**values):
         fields={k:v for k,v in values.items() if k in {'thread_id','directory','model','effort','title','project_id','phase','workflow'}}
         if not fields:return
@@ -103,8 +162,9 @@ class CreativeJobs:
         return result[:12]
     def resource_check(self,kind):
         s=self.resources()
-        if not s or s['ram_free_mib']<(8192 if kind=='sing_song' else 4096) or s['cpu_percent']>80:raise ValueError('电脑当前较忙或可用内存不足，先不启动这项任务。')
-        if kind=='sing_song' and (s['gpu_free_mib']<6144 or s['gpu_util_percent']>50):raise ValueError('显卡正在忙，先不占用本地歌声模型。')
+        full_performance=json.loads((self.root/'settings.local.json').read_text(encoding='utf-8')).get('performance_mode')=='full' if (self.root/'settings.local.json').exists() else False
+        if not s or s['ram_free_mib']<(8192 if kind=='sing_song' else 4096) or (not full_performance and s['cpu_percent']>80):raise ValueError('电脑当前较忙或可用内存不足，先不启动这项任务。')
+        if kind=='sing_song' and (s['gpu_free_mib']<6144 or (not full_performance and s['gpu_util_percent']>50)):raise ValueError('显卡正在忙，先不占用本地歌声模型。')
     def request(self,peer,kind,args,text,context=None,raw_text=None):
         from jsonschema import validate
         from creative_tools import TOOLS
@@ -125,6 +185,10 @@ class CreativeJobs:
             from image_workflow import settings as workflow_settings
             workflow_enabled=workflow_settings(self.root)['enabled'] or not deliver and context.get('_workflow_preview') is True
         if context.get('group_id') and (kind=='delegate_codex' or args.get('read_sources') or args.get('read_paths')):raise ValueError('电脑工作与读取资料只能由管理员在私聊里提出。')
+        if kind=='sing_song':
+            from singing_planner import lyric_request
+            supplied=lyric_request(actual,context.get('_singing_quote'))
+            if supplied:args={**args,'_supplied_lyrics':supplied}
         args={**args,'_memory_peer':str(peer)}
         if context.get('group_id'):args['_group_context']={k:context[k] for k in ['group_id','actor_id','memory_peer','group_revision']}
         from dialogue_context import highest_model_requested,comparison_models,named_models
@@ -171,7 +235,7 @@ class CreativeJobs:
             from creative_tools import DEMO_SONGS,named_song,original_song_requested
             specified=named_song(raw_text if raw_text is not None else text) or named_song(text)
             chosen=args['song'].strip()
-            if specified and specified.replace('曉','晓')!=chosen.replace('曉','晓'):
+            if specified and not args.get('_supplied_lyrics') and specified.replace('曉','晓')!=chosen.replace('曉','晓'):
                 from creative_tools import RetryableChoiceError
                 raise RetryableChoiceError('对方指定的是《'+specified+'》，不能擅自换成《'+chosen+'》。请按真实歌名修正参数。')
             if chosen not in DEMO_SONGS and not original_song_requested(chosen,text):raise ValueError('已识别到点歌《'+chosen+'》，但目前没有这首的可用乐谱；重复点歌不会解决。当前已验证的是《春晓》，也可按要求创作短歌。')
@@ -251,16 +315,14 @@ class CreativeJobs:
     def sing(self,args,text):
         song=args['song'].strip()
         from creative_tools import DEMO_SONGS,original_song_requested
-        if song in DEMO_SONGS:payload=self.local('/score/demo')
-        elif original_song_requested(song,text):
+        if args.get('_supplied_lyrics') or original_song_requested(song,text):
             import deepseek_client
             from agent_tools import TOOLS
+            from singing_planner import plan
             tool=next(t for t in TOOLS if t['function']['name']=='sing_from_score')
             guide=(self.root/'tool-guides/singing.md').read_text(encoding='utf-8')
-            response,_=deepseek_client.complete([{'role':'system','content':'按说明写一段全新原创中文短歌，最多20个汉字、25秒，逐字配音符和时长。歌词必须原创，不复现或续写现有歌曲。lyrics_origin必须original，voice=dania，source_url为空。只调用sing_from_score。\n'+guide},{'role':'user','content':text}], [tool],tool_choice='required',timeout=50)
-            calls=response.get('tool_calls') or []
-            if len(calls)!=1 or calls[0]['function']['name']!='sing_from_score':raise ValueError('未能生成有效的原创短歌乐谱。')
-            payload=json.loads(calls[0]['function']['arguments']);payload.update(voice='dania',lyrics_origin='original',source_url='')
+            payload=plan(deepseek_client.complete,tool,guide,text,args.get('_supplied_lyrics',''))
+        elif song in DEMO_SONGS:payload=self.local('/score/demo')
         else:raise ValueError('目前没有登记《'+song+'》的乐谱，不能冒充原曲演唱。可以先唱《春晓》，或说“唱一小段原创”。')
         from score_routes import ScoreRequest
         settings_file=self.root/'configs/singing-performance.local.json'
@@ -276,10 +338,12 @@ class CreativeJobs:
         dest=self.folder/(uuid.uuid4().hex+'.wav');shutil.copy2(source,dest)
         return {'text':'唱好了一小段《'+payload['title'].split(' · ')[0]+'》。达妮娅参考声线 / AI合成。','attachments':[{'kind':'record','path':str(dest)}],'metadata':result}
     def work(self,jid,peer,kind,args,text,context,cancelled):
-        started=time.time()
+        started=time.time();claimed=False
         from usage_ledger import USAGE_CONTEXT
         usage_token=USAGE_CONTEXT.set({'peer':peer,'role':self.contacts.role(peer),'job_id':jid})
         try:
+            if not self._claim_work(jid):return
+            claimed=True
             if self.stop.is_set() or cancelled.is_set():raise ValueError('任务已停止。')
             if context.get('deliver'):self.scope(peer,context)
             self.resource_check(kind);self.update(jid,state='running')
@@ -344,17 +408,20 @@ class CreativeJobs:
         except Exception as exc:
             from tool_failures import failure_info
             failure=failure_info(exc)
-            self.update(jid,state='cancelled' if cancelled.is_set() else 'failed',error=failure['error'])
+            if not claimed:
+                with self.db() as db:
+                    claimed=bool(db.execute("UPDATE jobs SET state=?,error=?,updated=? WHERE id=? AND state='accepted'",
+                        ('cancelled' if cancelled.is_set() else 'failed',failure['error'],time.time(),jid)).rowcount)
+                if not claimed:return
+            else:self.update(jid,state='cancelled' if cancelled.is_set() else 'failed',error=failure['error'])
             self.ledger.record('task_finished',event_key='task:'+jid+':finished',peer=peer,job_id=jid,model=args.get('model','local_voice'),state='cancelled' if cancelled.is_set() else 'failed',duration=time.time()-started,details={'kind':kind,'error_type':type(exc).__name__,'error_code':failure['error_code'],'failure_reason':failure['error']})
         finally:
             USAGE_CONTEXT.reset(usage_token)
-            self.cancels.pop(jid,None)
-            if cancelled.is_set():self.update(jid,delivery='suppressed')
-            if context.get('deliver') and not self.stop.is_set() and not cancelled.is_set():
-                try:
-                    pool=self.bridge.channel_pool(args.get('_memory_peer',peer)) if hasattr(self.bridge,'channel_pool') else self.bridge.pool
-                    pool.submit(self.deliver,jid)
-                except RuntimeError:pass
+            if claimed:
+                self.cancels.pop(jid,None)
+                if cancelled.is_set():self.update(jid,delivery='suppressed')
+                if context.get('deliver') and not self.stop.is_set() and not cancelled.is_set():
+                    self._queue_delivery(jid,args.get('_memory_peer',peer))
     def deliver(self,jid,owner=False):
         from qq_delivery import batches
         with self.db() as db:r=db.execute('SELECT * FROM jobs WHERE id=?',(jid,)).fetchone()
@@ -481,4 +548,6 @@ class CreativeJobs:
                 try:self.local('/score/cancel',{})
                 except Exception:pass
         return '已请求停止当前创作和工作任务。' if rows else '现在没有正在执行的创作或工作任务。'
-    def close(self):self.stop.set();self.pool.shutdown(wait=False,cancel_futures=True)
+    def close(self):
+        self.stop.set();self.pool.shutdown(wait=False,cancel_futures=True)
+        if threading.current_thread() is not self.deadline_thread:self.deadline_thread.join()

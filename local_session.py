@@ -1,11 +1,22 @@
 """Loopback, same-origin browser sessions. Never expose the long-lived API key."""
 from pathlib import Path
-import ipaddress,json,secrets,threading,time
+import ipaddress,json,re,secrets,threading,time
 from fastapi import HTTPException,Request
-from fastapi.responses import JSONResponse,Response
+from fastapi.responses import FileResponse,JSONResponse,Response
 
 COOKIE='whale_local_session'
 MARKER='whale-local-ui-v1'
+
+def local_audio_file(root,kind,name):
+    root=Path(root).resolve()
+    if kind=='artifacts' and re.fullmatch('[a-f0-9]{32}',name):
+        path=root/'artifacts'/(name+'.wav')
+    elif kind=='samples' and name in {'dania-daily.wav','dania-playful.wav','dania-caring.wav','dania-playful-smooth.wav','dania-playful-normal.wav'}:
+        path=root/'samples'/name
+    else:raise HTTPException(404,'Audio artifact not found')
+    if not path.is_file() or path.is_symlink() or path.resolve()!=path.absolute() or path.stat().st_nlink!=1:
+        raise HTTPException(404,'Audio artifact not found')
+    return path
 
 class LocalSessions:
     def __init__(self,api_token,port=18766,clock=time.time,root=None):
@@ -55,6 +66,10 @@ def register_local_sessions(app,root,api_token,port=18766):
     def start(request:Request):return sessions.create(request)
     @app.get('/local/session.js')
     def script():return Response((Path(root)/'local_session.js').read_text(encoding='utf-8'),media_type='application/javascript',headers={'Cache-Control':'no-store'})
+    @app.get('/local/media/{kind}/{name}')
+    def local_audio(kind:str,name:str,request:Request):
+        sessions.authorize(request,request.headers.get('authorization',''))
+        return FileResponse(local_audio_file(root,kind,name),media_type='audio/wav',headers={'Cache-Control':'no-store'})
     @app.middleware('http')
     async def local_pages(request,call_next):
         response=await call_next(request)

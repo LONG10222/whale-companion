@@ -76,6 +76,12 @@ The feature catalog preserves every implemented capability family and reports mi
 
 **升级失败：** 先看状态是“已恢复旧版”还是“需要手动恢复”。不要删除 `data/update-backups/`，不要整包覆盖私人配置。报告故障时只提供脱敏后的状态与错误编号。
 
+**升级中途断电或进程被强制结束：** 新版发起的升级在替换程序前记录文件事务与备份校验。再次启动时，只有旧升级进程已退出、服务空闲、文件符合原版/目标版哈希、数据库未产生新变化时，才恢复旧程序；不回滚聊天数据库。新数据、人工改动、备份损坏或旧版缺少事务时保留现场并阻止覆盖，需要检查备份。此恢复已用隔离子进程强制退出验证，不等于完成真实断电测试。
+
+Updates initiated by this version persist a file transaction before replacement. Restart-time recovery checks worker identity, idle services, original/target file hashes and unchanged databases before restoring application files. It does not roll back newer chat data. Changed data, manual edits, damaged backups and older unjournaled updates remain blocked for inspection. Forced child-process termination was tested in an isolated directory; physical power loss was not simulated.
+
+**睡眠恢复：** 可选桌面启动链注册仅在系统从睡眠恢复后运行的任务，保留用户明确暂停的状态，并复用原有 Clash → Google 连通 → ChatGPT → 本机服务顺序。该任务不唤醒电脑、不重复登录 QQ。便携基础安装仍由设置向导维护其独立进程。
+
 ## 开发与构建
 
 Python 3.13 / Windows x64 的安装依赖锁在 `requirements-bootstrap.lock` 中；每个二进制 wheel 都有 SHA-256。其他开发环境使用 `requirements.txt`。重新生成依赖锁时，应重新进行干净环境安装和完整回归。

@@ -53,13 +53,15 @@ def main():
                     do_sample=False, subtalker_dosample=False, max_new_tokens=660,
                 )
                 audio = np.asarray(wavs[0], dtype=np.float32)
+                from speech_edges import trim_edges
+                audio,edge_metrics=trim_edges(audio,sr)
                 duration = len(audio) / sr
                 if duration <= 0 or duration > config["max_audio_seconds"]:
                     raise ValueError(f"Audio duration {duration:.2f}s is outside the permitted range; shorten the text")
                 if not np.isfinite(audio).all() or np.sqrt(np.mean(audio * audio)) < 0.0001:
                     raise ValueError("Generated audio is invalid or silent")
                 sf.write(request["path"], audio, sr, format="WAV", subtype="PCM_16")
-                info = {"ok": True, "seconds": round(duration, 3), "sample_rate": sr,
+                info = {**edge_metrics,"ok": True, "seconds": round(duration, 3), "sample_rate": sr,
                         "generation_seconds": round(time.monotonic() - started, 3),
                         "peak_allocated_mib": round(torch.cuda.max_memory_allocated() / 1024**2, 1),
                         "peak_reserved_mib": round(torch.cuda.max_memory_reserved() / 1024**2, 1)}

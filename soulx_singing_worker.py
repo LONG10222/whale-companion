@@ -16,7 +16,7 @@ def main():
             torch.set_num_threads(max(1,min(8,int(cfg.get('cpu_threads',6)))))
             if not torch.cuda.is_available() or torch.cuda.mem_get_info()[0]<int(cfg.get('min_free_vram_mib',6144))*1024**2:
                 raise RuntimeError('SoulX歌声合成需要至少6GiB空闲显存')
-            torch.cuda.set_per_process_memory_fraction(max(.1,min(.75,float(cfg.get('gpu_memory_fraction',.65)))),0)
+            torch.cuda.set_per_process_memory_fraction(max(.1,min(.95 if cfg.get('performance_mode')=='full' else .75,float(cfg.get('gpu_memory_fraction',.65)))),0)
             seed=cfg.get('seed',20261021);torch.manual_seed(seed);np.random.seed(seed)
             source=Path(cfg['source_root']);config=load_config(str(source/'soulxsinger/config/soulxsinger.yaml'))
             model=build_model(cfg['model_path'],config,device='cuda',use_fp16=True)

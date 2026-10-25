@@ -14,7 +14,7 @@ def main():
             torch.set_num_threads(max(1,min(8,int(cfg.get('cpu_threads',6)))))
             if not torch.cuda.is_available():raise RuntimeError('Local music generation requires CUDA')
             if torch.cuda.mem_get_info()[0]<int(cfg.get('min_free_vram_mib',8192))*1024**2:raise RuntimeError('Music generation needs more free GPU memory')
-            torch.cuda.set_per_process_memory_fraction(max(.1,min(.75,float(cfg.get('gpu_memory_fraction',.65)))),0)
+            torch.cuda.set_per_process_memory_fraction(max(.1,min(.95 if cfg.get('performance_mode')=='full' else .75,float(cfg.get('gpu_memory_fraction',.65)))),0)
             import acestep.model_downloader as downloader
             use_lm=cfg.get('use_music_lm',True)
             downloader.MAIN_MODEL_COMPONENTS=['acestep-v15-turbo','vae','Qwen3-Embedding-0.6B']

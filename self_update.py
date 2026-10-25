@@ -46,6 +46,61 @@ def atomic(path, value):
     os.replace(temporary, path)
 
 
+def updater_is_alive(root, identity=None):
+    """True for an owned updater, False if absent, None when ownership is unreadable."""
+    import psutil
+    root = Path(root).resolve()
+    identity = identity or {}
+    def owned(process):
+        args = process.cmdline()
+        return (Path(process.cwd()).resolve() == root and '--root' in args
+                and Path(args[args.index('--root')+1]).resolve() == root
+                and any(Path(arg).resolve() == root/'scripts/update_worker.py'
+                        for arg in args[1:] if arg.endswith('.py')))
+    if identity.get('pid'):
+        try:
+            process = psutil.Process(int(identity['pid']))
+            if abs(process.create_time()-float(identity['created_at'])) > .01:
+                return False
+            return owned(process)
+        except psutil.AccessDenied:
+            return None
+        except (psutil.NoSuchProcess, OSError, ValueError, KeyError, IndexError, TypeError):
+            return False
+    uncertain = False
+    for process in psutil.process_iter():
+        try:
+            if not process.name().lower().startswith('python'):
+                continue
+        except psutil.AccessDenied:
+            uncertain = True
+            continue
+        except psutil.Error:
+            continue
+        try:
+            if owned(process):
+                return True
+        except psutil.AccessDenied:
+            uncertain = True
+        except (psutil.NoSuchProcess, OSError, ValueError, IndexError):
+            continue
+    return None if uncertain else False
+
+
+def reported_update_progress(root, progress, now):
+    """Report abandoned maintenance without lifting its persisted safety barrier."""
+    if progress.get('phase') not in ACTIVE_PHASES:
+        return progress
+    try:
+        stale = now-float(progress.get('at', now)) > 120
+    except (ValueError, TypeError):
+        stale = False
+    if stale and updater_is_alive(root, progress.get('worker')) is False:
+        return {**progress, 'phase':'recovery_required', 'interrupted_phase':progress['phase'],
+                'message':'上次升级进程已退出，需先检查本机备份并恢复。当前禁止重复覆盖安装。'}
+    return progress
+
+
 def version(value):
     match = re.fullmatch(r'v?(\d+)\.(\d+)\.(\d+)', str(value))
     if not match:
@@ -181,13 +236,15 @@ class UpdateService:
 
     def state(self):
         check = read(self.cache, {})
-        progress = read(self.progress, {'phase': 'idle'})
+        progress = reported_update_progress(self.root, read(self.progress, {'phase': 'idle'}), self.clock())
+        needs_recovery = progress.get('phase') == 'recovery_required'
         release = check.get('release')
         available = bool(release and version(release['version']) > version(self.current()))
         return {'current': self.current(), 'available': available,
                 'release': release if available else None, 'checked_at': check.get('at'),
                 'check_message': check.get('message', '尚未检查新版。'), 'progress': progress,
-                'can_upgrade': bool(read(self.folder / 'installation.local.json', {}).get('completed')),
+                'can_upgrade': bool(read(self.folder / 'installation.local.json', {}).get('completed')) and not needs_recovery,
+                'needs_recovery': needs_recovery,
                 'automatic_check': True, 'automatic_install': False}
 
     def check(self, *, force=False):
@@ -218,6 +275,8 @@ class UpdateService:
     def apply(self):
         with self.lock:
             state = self.state()
+            if state['needs_recovery']:
+                raise ValueError('上次升级需要恢复；已保留本机备份，暂不开始新的覆盖升级。')
             if not state['can_upgrade']:
                 raise ValueError('请先完成这份发行包的初次设置；不会接管已有的其他安装。')
             if state['progress']['phase'] in ACTIVE_PHASES:

@@ -86,6 +86,19 @@ class CreativeTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):self.service.deliver(r['job_id'],owner=True)
         self.assertEqual(self.service.recent()[0]['delivery'],'uncertain');self.service.deliver(r['job_id'],owner=True);self.assertEqual(len(self.out),1)
 
+
+    def test_quoted_song_source_is_bound_after_model_arguments_validate(self):
+        from unittest.mock import Mock
+        self.service.work=Mock()
+        request='把引用这句话唱出来，自己配个温柔的小调'
+        result=self.service.request(self.peer,'sing_song',{'song':'原创'},request,{'_singing_quote':{'text':'晚风轻轻吹'}})
+        self.settle();self.assertTrue(result['accepted'])
+        self.assertEqual(self.service.work.call_args.args[3]['_supplied_lyrics'],'晚风轻轻吹')
+        from jsonschema import ValidationError
+        with self.assertRaises(ValidationError):
+            self.service.request(self.peer,'sing_song',{'song':'原创','_supplied_lyrics':'伪造来源'},request)
+
+
 class PolicyAndBubbleTests(unittest.TestCase):
     def test_text_face_then_sticker_is_majority_but_both_layouts_exist(self):
         r={'reply':'收到啦','attachments':[{'kind':'face','id':'20'},{'kind':'image','path':'C:/safe/sticker.png'}]}

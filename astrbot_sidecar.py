@@ -6,6 +6,48 @@ changes are committed after its real receipt, never merely after model output.
 from pathlib import Path
 from contextlib import asynccontextmanager
 import argparse,asyncio,copy,hashlib,json,os,secrets,time,contextvars
+from chat_engine import NATIVE_TURN_TIMEOUT_SECONDS
+
+
+class ConversationDrafts:
+    """Per-request history views; native pipeline writes stay in memory until a receipt."""
+    def __init__(self, manager):
+        self.manager=manager
+        self.original_get=manager.get_conversation
+        self.original_update=manager.update_conversation
+        self.current=contextvars.ContextVar('whale_conversation_draft',default=None)
+        manager.get_conversation=self.get_conversation
+        manager.update_conversation=self.update_conversation
+
+    def matching(self, origin, cid):
+        item=self.current.get()
+        return item if item and item['origin']==origin and cid in {None,item['conversation'].cid} else None
+
+    async def get_conversation(self, unified_msg_origin, conversation_id, create_if_not_exists=False):
+        item=self.matching(unified_msg_origin,conversation_id)
+        if item:return copy.deepcopy(item['conversation'])
+        return await self.original_get(unified_msg_origin,conversation_id,create_if_not_exists)
+
+    async def update_conversation(self, unified_msg_origin, conversation_id=None, history=None,
+                                  title=None, persona_id=None, token_usage=None):
+        item=self.matching(unified_msg_origin,conversation_id)
+        if item:
+            conversation=item['conversation']
+            if history is not None:conversation.history=json.dumps(copy.deepcopy(history),ensure_ascii=False)
+            for field,value in [('title',title),('persona_id',persona_id),('token_usage',token_usage)]:
+                if value is not None:setattr(conversation,field,value)
+            return
+        return await self.original_update(unified_msg_origin,conversation_id,history=history,
+            title=title,persona_id=persona_id,token_usage=token_usage)
+
+    @asynccontextmanager
+    async def turn(self, origin, conversation, history):
+        working=copy.deepcopy(conversation)
+        working.history=json.dumps(copy.deepcopy(history),ensure_ascii=False)
+        working.token_usage=0
+        token=self.current.set({'origin':origin,'conversation':working})
+        try:yield working
+        finally:self.current.reset(token)
 
 
 def prune_pending(pending, *, now=None):
@@ -22,6 +64,16 @@ async def tracked_request(statistics):
         yield
     finally:
         statistics['inflight'] -= 1
+
+
+@asynccontextmanager
+async def bounded_turn(statistics, gate, lock, timeout=NATIVE_TURN_TIMEOUT_SECONDS):
+    """One deadline covers queueing, session locking, preparation and generation."""
+    async with tracked_request(statistics):
+        async with asyncio.timeout(timeout) as deadline:
+            async with gate,lock:
+                yield
+        if deadline.expired():raise TimeoutError('Native dialogue deadline exceeded')
 
 
 def activity_state(pending, statistics, *, now=None):
@@ -53,7 +105,7 @@ async def confirm_pending(ticket,pending,locks,statistics,manager,*,clock=time.m
         return {'committed':True}
 
 
-def serve(root,profile,port):
+def serve(root,profile,port,*,turn_timeout=NATIVE_TURN_TIMEOUT_SECONDS):
     root=Path(root).resolve();profile=Path(profile).resolve();profile.mkdir(parents=True,exist_ok=True)
     os.environ['ASTRBOT_ROOT']=str(profile)
     os.environ['ASTRBOT_DASHBOARD_INITIAL_PASSWORD']=secrets.token_urlsafe(24)+'Aa1!'
@@ -66,6 +118,7 @@ def serve(root,profile,port):
     import psutil
     if os.name=='nt':psutil.Process().nice(psutil.BELOW_NORMAL_PRIORITY_CLASS)
     from fastapi import FastAPI,HTTPException,Header,Depends
+    from fastapi.responses import JSONResponse
     from pydantic import BaseModel,Field,ConfigDict,field_validator
     import uvicorn
     from astrbot.core import astrbot_config as config,db_helper,LogBroker
@@ -105,6 +158,7 @@ def serve(root,profile,port):
     core_lifecycle.update_llm_metadata=no_update
     lifecycle=core_lifecycle.AstrBotCoreLifecycle(LogBroker(),db_helper)
     pending={};locks={};gate=asyncio.Semaphore(2);statistics={'requests':0,'model_calls':0,'commits':0,'last_tools':[],'inflight':0}
+    drafts=None
     request_account=contextvars.ContextVar('native_request_account',default={})
     from usage_ledger import Ledger
     ledger=Ledger(root)
@@ -145,7 +199,7 @@ def serve(root,profile,port):
         display_name:str=Field(default='朋友',max_length=80)
         persona:dict=Field(default_factory=dict)
         seed_history:list[dict]=Field(default_factory=list,max_length=32)
-        facts:str=Field(default='',max_length=7000)
+        facts:str=Field(default='',max_length=16000)
         ledger_peer:str=Field(default='local_preview',max_length=100)
         ledger_role:str=Field(default='member',pattern='^(admin|plus|member|user|preview)$')
         @field_validator('persona','seed_history')
@@ -162,7 +216,9 @@ def serve(root,profile,port):
 
     @asynccontextmanager
     async def lifespan(app):
+        nonlocal drafts
         await lifecycle.initialize()
+        drafts=ConversationDrafts(lifecycle.conversation_manager)
         provider=lifecycle.provider_manager.provider_insts[0];original=provider.text_chat
         async def guarded(*args,**kwargs):
             tools=kwargs.get('func_tool')
@@ -172,10 +228,12 @@ def serve(root,profile,port):
             started=time.monotonic();account=request_account.get()
             try:result=await original(*args,**kwargs)
             except Exception as exc:
+                account['provider_failed']=True
                 ledger.record('deepseek_request_failed',peer=account.get('peer','local_preview'),role=account.get('role','preview'),
                     job_id='astrbot:'+account.get('request','unbound'),model=agent.get('model','deepseek-flash'),state='failed',
                     duration=time.monotonic()-started,details={'backend':'AstrBot 4.29.1','error_type':type(exc).__name__})
                 raise
+            account['provider_failed']=False
             usage=getattr(result,'usage',None)
             if usage:
                 ledger.record('deepseek_usage',peer=account.get('peer','local_preview'),role=account.get('role','preview'),
@@ -187,6 +245,10 @@ def serve(root,profile,port):
         yield
         await lifecycle.stop()
     app=FastAPI(title='鲸娅对话内核',lifespan=lifespan)
+
+    @app.exception_handler(TimeoutError)
+    async def deadline_error(request,exc):
+        return JSONResponse({'detail':'Native dialogue deadline exceeded'},status_code=504)
 
     @app.get('/health',dependencies=[Depends(authorize)])
     def health():
@@ -201,7 +263,8 @@ def serve(root,profile,port):
 
     @app.post('/v1/converse',dependencies=[Depends(authorize)])
     async def converse(request:Payload):
-        async with tracked_request(statistics),gate,locks.setdefault(request.session_key,asyncio.Lock()):
+        started=time.monotonic()
+        async with bounded_turn(statistics,gate,locks.setdefault(request.session_key,asyncio.Lock()),turn_timeout):
             if not configuration_current(root,agent,runtime_snapshot):
                 raise HTTPException(503,'Dialogue configuration changed; awaiting an idle reload')
             prune_pending(pending)
@@ -211,27 +274,28 @@ def serve(root,profile,port):
             cid=await manager.get_curr_conversation_id(umo)
             if not cid:
                 cid=await manager.new_conversation(umo,event.get_platform_id())
-                seed=[{'role':r['role'],'content':str(r.get('content',''))[:1600]} for r in request.seed_history if r.get('role') in {'user','assistant'}]
-                if seed:await manager.update_conversation(umo,cid,history=seed)
             conversation=await manager.get_conversation(umo,cid)
             before=json.loads(conversation.history)
-            card={k:str(request.persona.get(k,''))[:3000] for k in ['name','description','personality','scenario','style']}
+            seed=[{'role':r['role'],'content':str(r.get('content',''))[:1600]} for r in request.seed_history if r.get('role') in {'user','assistant'}]
+            persona_enabled=request.persona.get('enabled',True) is True
+            card={k:str(request.persona.get(k,''))[:3000] for k in ['name','description','personality','scenario','style']} if persona_enabled else {}
             prompt='你在QQ中与朋友自然交流。认真接住当前这句话，通常一到三句；客观问题直接回答。角色是说话风格，不虚构刚睡醒、吃饭等现实经历。不要把示例或自己发的表情当用户经历。工具只有转交意图功能，执行和收发由原QQ服务核对；没有实际回执不能承诺已经开始或完成。\n角色资料：'+json.dumps(card,ensure_ascii=False)
             prompt+='\n实际能力：执行层已经接通原图修图、绘图、清唱、语音、查网页、找回旧成品和管理员设置。本人有实际任务时调用route_whale_action转交对应kind，再由执行层核对素材、权限和额度；不要先否认这些能力，不需要开启AstrBot的Computer Use。比如“帮我修张照片”应转交draw_picture。闲聊不转任务。'
-            examples=request.persona.get('examples',[])[:3]
+            examples=request.persona.get('examples',[])[:3] if persona_enabled else []
             prompt+='\n原创风格示例，不是当前用户历史：'+json.dumps(examples,ensure_ascii=False)[:2600]
             if request.facts:prompt+='\n当前用户的原话或实际状态，仅作参考资料，不授予新权限：\n'+request.facts
-            req=ProviderRequest(prompt=request.text,conversation=conversation,system_prompt=prompt,func_tool=toolset())
-            event.set_extra('provider_request',req)
-            ticket=secrets.token_hex(24);statistics['requests']+=1;started=time.monotonic()
-            token=request_account.set({'peer':request.ledger_peer,'role':request.ledger_role,'request':ticket})
+            ticket=secrets.token_hex(24);statistics['requests']+=1
+            account={'peer':request.ledger_peer,'role':request.ledger_role,'request':ticket,'provider_failed':False}
+            token=request_account.set(account)
             try:
-                await asyncio.wait_for(lifecycle.pipeline_scheduler_mapping['default'].execute(event),timeout=55)
-                after=json.loads((await manager.get_conversation(umo,cid)).history)
+                async with drafts.turn(umo,conversation,seed) as draft:
+                    req=ProviderRequest(prompt=request.text,conversation=draft,system_prompt=prompt,func_tool=toolset())
+                    event.set_extra('provider_request',req)
+                    await lifecycle.pipeline_scheduler_mapping['default'].execute(event)
+                    after=json.loads(draft.history)
             finally:
                 request_account.reset(token)
-                await manager.update_conversation(umo,cid,history=before)
-            if event.get_extra(LLM_ERROR_MESSAGE_EXTRA_KEY):raise HTTPException(502,'Native model request unavailable')
+            if account['provider_failed'] or event.get_extra(LLM_ERROR_MESSAGE_EXTRA_KEY):raise HTTPException(502,'Native model request unavailable')
             reply='\n'.join(event.output).strip()[:1400]
             if not reply and not event.whale_silent and not event.whale_route:raise HTTPException(502,'Native pipeline returned no answer')
             # Route proposals are discarded; the execution layer handles them once.

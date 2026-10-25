@@ -35,11 +35,15 @@ class Upgrade:
         self.stopped = False
         self.owned_voice = False
         self.changed = []
+        self.transaction = None
         self.previous_manifest = read(self.root / 'release-manifest.json', {})
+        import psutil
+        self.worker_identity = {'pid': os.getpid(), 'created_at': psutil.Process().create_time()}
 
     def status(self, phase, message):
         atomic(self.progress_file, {'phase': phase, 'message': message, 'at': time.time(),
-                                    'target': self.release['tag'], 'operation': self.id})
+                                    'target': self.release['tag'], 'operation': self.id,
+                                    'worker': self.worker_identity})
 
     def api(self, route, body=None):
         import httpx
@@ -286,6 +290,9 @@ class Upgrade:
                 shutil.copy2(path, backup)
             self.changed.append({'name': name, 'existed': exists})
         atomic(self.backup / 'rollback-manifest.private.json', self.changed)
+        from update_transaction import FileTransaction
+        self.transaction=FileTransaction(self.root,self.backup)
+        self.transaction.prepare(self.changed,stage)
         self.switched = True
         for item in self.changed:
             name = item['name']
@@ -357,6 +364,7 @@ class Upgrade:
         self.settings = read(self.root / 'settings.local.json')
         self.status('validating', '上一版本已恢复，正在检查服务。')
         self.start()
+        if self.transaction:self.transaction.finish('rolled_back')
         self.status('rolled_back', '新版没有通过检查，已恢复上一版本；账号、Key 和原数据库保留。')
         self.set_replies(bool(self.was_enabled))
 
@@ -368,12 +376,16 @@ class Upgrade:
             self.replace_application(stage, manifest)
             settings = read(self.root / 'settings.local.json')
             settings['python'] = python
+            self.transaction.private_intent('settings.local.json',json.dumps(settings,ensure_ascii=False,indent=2).encode('utf-8'))
             write_private(self.root / 'settings.local.json', settings)
+            self.transaction.private_intent('data/setup/python-environment.local.json',json.dumps({'python':python},ensure_ascii=False,indent=2).encode('utf-8'))
             write_private(self.data / 'python-environment.local.json', {'python': python})
             lock_hash = hashlib.sha256((stage / 'requirements-bootstrap.lock').read_bytes()).hexdigest().upper()
+            self.transaction.private_intent('.runtime/dependencies.sha256',lock_hash.encode('ascii'))
             (self.root / '.runtime/dependencies.sha256').write_text(lock_hash, encoding='ascii')
             self.status('validating', '正在检查新版服务并恢复聊天。')
             self.start()
+            self.transaction.finish('succeeded')
             self.status('succeeded', '升级完成，聊天已恢复；备份保存在本机。')
             try:
                 self.set_replies(bool(self.was_enabled))

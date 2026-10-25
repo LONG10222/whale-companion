@@ -34,7 +34,7 @@ TOOLS=[definition('use_sticker','准备1到3张本地DeepSeek或鸣潮表情包�
     {'emotion':{'type':'string','enum':['','开心','调皮','无语','委屈','难过','生气','害羞','疑惑','惊讶','害怕','安慰','赞同','拒绝','问候','感谢','喜欢','嫌弃']},'query':{'type':'string','maxLength':80,'description':'动作或场景关键词，主题名填theme。'},
      'theme':{'type':'string','enum':['DeepSeek','鸣潮','']},'character':{'type':'string','maxLength':40},
      'count':{'type':'integer','minimum':1,'maximum':3}},['emotion','query','theme','character']),
-    definition('speak_text','对方明确要求语音时，合成正常语速的达妮娅中文参考声线。',
+    definition('speak_text','对方明确要求语音时，合成正常语速的聊天语音，音色由本轮用户选择。',
     {'text':{'type':'string','minLength':1,'maxLength':600}},['text'])]
 
 class ChatMemory:
@@ -53,6 +53,7 @@ class ChatMemory:
                 CREATE TABLE IF NOT EXISTS stickers(peer TEXT,id TEXT,at REAL);
                 CREATE TABLE IF NOT EXISTS image_messages(peer TEXT,mid INTEGER,sha TEXT,at REAL,PRIMARY KEY(peer,mid,sha));
                 CREATE TABLE IF NOT EXISTS quoted_messages(peer TEXT,mid INTEGER,data TEXT,PRIMARY KEY(peer,mid));
+                CREATE TABLE IF NOT EXISTS chat_voice_preferences(peer TEXT PRIMARY KEY,voice TEXT NOT NULL);
                 CREATE INDEX IF NOT EXISTS images_peer_at ON image_messages(peer,at);''')
             if 'origin' not in {r[1] for r in c.execute('PRAGMA table_info(messages)')}:
                 c.execute("ALTER TABLE messages ADD COLUMN origin TEXT NOT NULL DEFAULT 'chat'")
@@ -311,19 +312,19 @@ class QQConversation:
         cfg=json.loads((self.root/'settings.local.json').read_text(encoding='utf-8'))
         with httpx.Client(trust_env=False,timeout=15) as c:
             c.post(f'http://127.0.0.1:{cfg["port"]}/admin/unload',headers={'Authorization':'Bearer '+cfg['api_token']}).raise_for_status()
-    def render_speech(self,text,multiple=False):
+    def render_speech(self,text,multiple=False,voice=''):
         from qq_speech import read_aloud,read_aloud_parts
-        speaker=(lambda part:self.speak(part,release=False)) if self.local_speaker else self.speaker
+        speaker=((lambda part:self.speak(part,release=False,voice=voice)) if voice else (lambda part:self.speak(part,release=False))) if self.local_speaker else self.speaker
         try:return (read_aloud_parts if multiple else read_aloud)(speaker,text,self.root/'artifacts')
         finally:
             if self.local_speaker:
                 try:self.release_speech()
                 except Exception:pass
-    def speak(self,text,release=True):
+    def speak(self,text,release=True,voice=''):
         cfg=json.loads((self.root/'settings.local.json').read_text(encoding='utf-8'))
         with httpx.Client(trust_env=False,timeout=300) as c:
             try:
-                r=c.post(f'http://127.0.0.1:{cfg["port"]}/v1/music/speak',json={'text':text},headers={'Authorization':'Bearer '+cfg['api_token']})
+                r=c.post(f'http://127.0.0.1:{cfg["port"]}/v1/music/speak',json={'text':text,**({'voice':voice} if voice else {})},headers={'Authorization':'Bearer '+cfg['api_token']})
                 if r.status_code==429:raise RuntimeError('语音模型正在忙，等这一条结束再叫我。')
                 if r.status_code!=200:
                     try:reason=str(r.json().get('detail',''))
@@ -359,6 +360,16 @@ class QQConversation:
                     'tools':[{'tool':'confirm_bilibili_interaction','result':confirmed}]}
         from qq_speech import speech_request,read_target
         speech=speech_request(raw_text);prior_messages=self.memory.active_recent(peer,24)
+        from voice_catalog import profile
+        with self.memory.db() as voice_db:
+            if speech.get('voice') and (speech['requested'] or re.search(r'换成|改成|切换到|以后用',raw_text)):
+                voice_db.execute('INSERT OR REPLACE INTO chat_voice_preferences VALUES(?,?)',(peer,speech['voice']))
+            else:
+                saved_voice=voice_db.execute('SELECT voice FROM chat_voice_preferences WHERE peer=?',(peer,)).fetchone()
+                if saved_voice:speech['voice']=saved_voice[0]
+        if not speech['requested'] and speech.get('voice') and re.fullmatch(r'(?:请|帮我|以后|现在|把音色)?(?:换成|改成|切换到|用).{1,25}(?:音色|声音|声线|女声|男声)[吧。！!\s]*',raw_text) and not quoted_context:
+            if remember:self.memory.add(peer,'user',raw_text)
+            return {'reply':'好，接下来的语音用'+profile(speech['voice'])['label']+'。','attachments':[],'tools':[]}
         # Asking for an existing result must not create another paid task or let
         # the model substitute its own recent reaction sticker for a user photo.
         if self.creative and hasattr(self.creative,'scope') and not images and not media_context and not quoted_context:
@@ -412,7 +423,7 @@ class QQConversation:
                 'tools':[{'tool':'inspect_work','result':task_state_data(job_context,raw_text)}]}
         from chat_engine import eligible as native_eligible
         native_config=self.native_engine.config()
-        if native_config['enabled'] and native_config.get('mode')=='hybrid' and not photo_pending and not failure_followup(raw_text,prior_messages,job_context) and native_eligible(raw_text,prior_messages,
+        if not speech['requested'] and native_config['enabled'] and native_config.get('mode')=='hybrid' and not photo_pending and not failure_followup(raw_text,prior_messages,job_context) and native_eligible(raw_text,prior_messages,
                 has_media=bool(images or media_context or quoted_context or audio_context or file_context or file_catalog or image_cache_error or '[QQ表情' in raw_text),approval=bool(approval)):
             if remember:
                 native_mid=self.memory.add(peer,'user',raw_text)
@@ -478,10 +489,10 @@ class QQConversation:
         if voice_requested and speech['read_exact']:
             if not voice_enabled:return {'reply':'这会儿语音回复被关闭了，需要先在本机打开。','attachments':[],'tools':[]}
             try:
-                original,source=read_target(speech,raw_text,prior_messages,quoted_context,descriptions)
-                recordings=self.render_speech(original,multiple=True)
+                original,source=read_target(speech,raw_text,self.memory.active_rows(peer,24)[:-1] if remember else self.memory.active_rows(peer,24),quoted_context,descriptions)
+                recordings=self.render_speech(original,multiple=True,**({'voice':speech['voice']} if speech.get('voice') else {}))
                 return {'reply':'','attachments':[{'kind':'record','path':str(a['path']),'text':a['text']} for a in recordings],
-                    'tools':[{'tool':'speak_text','result':{'prepared':True,'text':original,'source':source,'voice':'达妮娅中文参考声线 / AI合成'}}]}
+                    'tools':[{'tool':'speak_text','result':{'prepared':True,'text':original,'source':source,'voice':speech.get('voice') or 'dania'}}]}
             except Exception as exc:return {'reply':str(exc)[:200],'attachments':[],'tools':[{'tool':'speak_text','result':{'prepared':False,'error':str(exc)[:180]}}]}
         if remember:messages=self.memory.context(peer,raw_text)
         else:
@@ -773,6 +784,8 @@ class QQConversation:
                                 from creative_tools import RetryableChoiceError
                                 raise RetryableChoiceError('本轮当前群里有真实图片文件，但尚未取得原图。先调用read_group_images读取素材，再用同一项draw_picture请求修图；无需让用户把群文件重发成聊天图片。')
                             invocation_context={**(invocation_context or {}),'source_image_shas':[i['sha256'] for i in images or []][:3],'_image_edit':True}
+                        if name=='sing_song' and quoted_context:
+                            invocation_context={**(invocation_context or {}),'_singing_quote':quoted_context}
                         result=self.creative.request(peer,name,args,invocation_text,context=invocation_context,raw_text=raw_text)
                         if name in {'draw_picture','sing_song','lookup_web'} and result.get('accepted'):accepted_creation=(name,args,result)
                     elif name=='use_sticker':
@@ -788,8 +801,8 @@ class QQConversation:
                     elif name=='speak_text':
                         if requested_tool(user_text)=='sing_song':raise ValueError('唱歌请求请调用sing_song，不能用念歌词或普通说话代替。')
                         if not voice_enabled or not voice_requested:raise ValueError('本轮没有明确语音请求。')
-                        recordings=self.render_speech(args['text'],multiple=True);attachments.extend({'kind':'record','path':str(a['path']),'text':a['text']} for a in recordings)
-                        result={'prepared':True,'text':args['text'],'voice':'达妮娅中文参考声线 / AI合成'}
+                        recordings=self.render_speech(args['text'],multiple=True,**({'voice':speech['voice']} if speech.get('voice') else {}));attachments.extend({'kind':'record','path':str(a['path']),'text':a['text']} for a in recordings)
+                        result={'prepared':True,'text':args['text'],'voice':speech.get('voice') or 'dania'}
                     elif name=='retrieve_work_result':
                         from conversation_artifacts import authorize_retrieval,retrieve_result
                         if not authorize_retrieval(raw_text,args['kind'],prior_messages,self.client):raise ValueError('本轮不是索要已有成品，先回应对方当前的话。')

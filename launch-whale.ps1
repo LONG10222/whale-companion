@@ -1,4 +1,4 @@
-param([switch]$CheckOnly,[switch]$NoOpen,[switch]$NoGui,[switch]$LoadFunctionsOnly)
+﻿param([switch]$CheckOnly,[switch]$NoOpen,[switch]$NoGui,[switch]$LoadFunctionsOnly,[switch]$ResumeOnly)
 $ErrorActionPreference='Stop'
 $script:TaskRoot=$PSScriptRoot
 $script:LauncherSteps=New-Object System.Collections.Generic.List[object]
@@ -89,7 +89,7 @@ function Invoke-WhaleStartup($Config){
         else{Add-LaunchStep ('本地服务 '+$taskPort) 'pending' '准备启动。'}
     }
     if(-not$CheckOnly){
-        & (Join-Path $script:TaskRoot 'start-qq.ps1') | Out-Null
+        & (Join-Path $script:TaskRoot 'start-qq.ps1') -EnsureOnly:$ResumeOnly | Out-Null
         Add-LaunchStep '后台维护' 'pending' '已交给Windows独立运行，正在核对后台心跳。'
     }
     foreach($taskPort in @(18765,18766)){
@@ -110,6 +110,10 @@ function Invoke-WhaleStartup($Config){
     if(-not$NoOpen -and -not$CheckOnly){Start-Process -FilePath 'explorer.exe' -ArgumentList $Config.control_url -WindowStyle Hidden}
 }
 if($LoadFunctionsOnly){return}
+if($ResumeOnly){
+    $resumeDesired=Join-Path $script:TaskRoot 'configs/runtime-control.local.json'
+    if(-not(Test-Path -LiteralPath $resumeDesired) -or (Get-Content -LiteralPath $resumeDesired -Raw -Encoding UTF8 | ConvertFrom-Json).desired-ne'running'){return}
+}
 $script:StatusList=$null;$taskForm=$null;$taskLocked=$false;$taskMutex=New-Object Threading.Mutex($false,'Local\WhaleCompanionLauncherV1')
 try{
     $taskLocked=$taskMutex.WaitOne(0)

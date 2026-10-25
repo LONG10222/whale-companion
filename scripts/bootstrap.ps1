@@ -172,6 +172,10 @@ try {
   }
   & $taskVenvPython -X utf8 (Join-Path $taskRoot 'scripts\beginner_setup.py') --root $taskRoot --prepare
   if ($LASTEXITCODE -ne 0) { throw 'Could not prepare local settings. Existing configuration was kept.' }
+  if(Test-Path -LiteralPath (Join-Path $taskRoot 'data/setup/update-progress.local.json')) {
+    & $taskVenvPython -X utf8 (Join-Path $taskRoot 'scripts/recover-update.py') --root $taskRoot
+    if($LASTEXITCODE) { throw 'Interrupted upgrade needs inspection; backups and current data are preserved.' }
+  }
   Start-SetupHost ($taskVenvPython.Replace('python.exe','pythonw.exe'))
   $taskState = Join-Path $taskRoot 'data\setup\host.local.json'
   $taskReady = $null

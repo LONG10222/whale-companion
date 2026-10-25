@@ -8,7 +8,26 @@ import deepseek_client
 
 MAX_BYTES=12*1024**2
 VISION_MODEL='deepseek-flash'
-SEMANTIC_VERSION=3
+SEMANTIC_VERSION=4
+PNG_SCAN_CHUNKS=1024
+
+def requires_isolated_preview(data):
+    """Inspect bounded container headers without decoding frames or PNG text."""
+    if data.startswith((b'GIF87a',b'GIF89a')) or data[:4]==b'RIFF' and data[8:12]==b'WEBP':return True
+    if not data.startswith(b'\x89PNG\r\n\x1a\n'):return False
+    if len(data)>MAX_BYTES:return True
+    offset=8
+    for _ in range(PNG_SCAN_CHUNKS):
+        if offset+12>len(data):return True
+        length=int.from_bytes(data[offset:offset+4],'big');kind=data[offset+4:offset+8]
+        end=offset+12+length
+        if end>len(data):return True
+        if kind==b'acTL':return True
+        if kind in {b'IDAT',b'IEND'}:return False
+        offset=end
+    # Ambiguous or excessively fragmented containers stay outside the API process.
+    return True
+
 def qq_url(url):
     parsed=urlparse(url);host=(parsed.hostname or '').lower()
     return bool(parsed.scheme in ('https','http') and not parsed.username and not parsed.password and parsed.port in (None,80,443)
@@ -87,7 +106,7 @@ class QQImages:
     def prepare(self,data):
         if len(data)>MAX_BYTES:raise ValueError('图片超过大小限制。')
         sha=hashlib.sha256(data).hexdigest()
-        if data.startswith((b'GIF87a',b'GIF89a')) or data[:4]==b'RIFF' and data[8:12]==b'WEBP' or data.startswith(b'\x89PNG') and b'acTL' in data[:8192]:
+        if requires_isolated_preview(data):
             from bounded_animation import preview
             result=preview(data,self.root)
             extension='gif' if data.startswith(b'GIF') else 'webp' if data[:4]==b'RIFF' else 'png'

@@ -18,6 +18,9 @@ DeepSeek 负责对话与工具选择，SQLite 保存按 QQ 身份与会话隔离
 
 > 正式下载、验证范围与已知问题以 [Releases](https://github.com/LONG10222/whale-companion/releases) 为准。主分支也可能包含准备中的改动；通过检查后才生成正式安装包。
 
+
+新增：可选多音色、引用原话朗读、语音回答和短句自配清唱，见[语音与旋律](docs/VOICE_AND_MELODY.md)。本地语音与唱歌需要单独配置模型；基础一键安装不下载角色声音素材。
+
 ## 先跑起来
 
 1. 下载正式发行包 `WhaleCompanion-v版本-windows-x64.zip`，完整解压到自己的普通文件夹。

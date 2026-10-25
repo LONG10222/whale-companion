@@ -220,7 +220,7 @@ def synthesize(request):
     voice = request.voice.lower() if request.voice else ('dania' if engine == 'dania-gptsovits' else 'zh-3' if engine == 'kokoro-cpu' else 'serena')
     if voice not in speakers:
         raise HTTPException(400, "Unsupported voice")
-    signature = ["qwen3-0.6b", "85e237c", voice, text] if engine == 'qwen3-tts-local' else ["kokoro-int8-v1.1", voice, text]
+    signature = ["qwen3-0.6b", "85e237c", "normal-pace-v3-edges", voice, text] if engine == 'qwen3-tts-local' else ["kokoro-int8-v1.1", voice, text]
     if engine == 'dania-gptsovits':
         signature = ['dania-v2ProPlus', '021de96f', '668b7ff9', '98cde6a6', 'pace-v5-short60-gentle350keep250', 0.85, 0.12, 0.8, 20261020, text]
     key = hashlib.sha256(json.dumps(signature, ensure_ascii=False).encode()).hexdigest()
@@ -262,6 +262,21 @@ def speech(request: SpeechRequest):
         "X-Audio-Metrics": json.dumps(metrics),
         "Cache-Control": "no-store",
     })
+
+
+@app.get('/v1/audio/voices',dependencies=[Depends(authorize)])
+def voice_catalog():
+    from voice_catalog import available
+    return {'voices':available(CONFIG),'default':'dania','rate':1}
+
+
+@app.get('/v1/audio/previews',dependencies=[Depends(authorize)])
+def voice_previews():
+    file=ROOT/'configs/voice-previews.local.json'
+    try:items=json.loads(file.read_text(encoding='utf-8'))
+    except (OSError,ValueError):items=[]
+    if not isinstance(items,list):items=[]
+    return {'items':[{'title':str(i.get('title','AI合成试听'))[:100],'artifact_id':i['artifact_id']} for i in items[:8] if isinstance(i,dict) and re.fullmatch(r'[a-f0-9]{32}',str(i.get('artifact_id',''))) and (ROOT/'artifacts'/(i['artifact_id']+'.wav')).is_file()]}
 
 
 @app.get("/health")
@@ -314,7 +329,7 @@ register_singing_routes(app,authorize=authorize,lock=LOCK,unload=unload_locked,r
 
 from music_routes import register_music_routes
 MUSIC_SERVICE=register_music_routes(app,authorize=authorize,lock=LOCK,unload=unload_locked,root=ROOT,
-    synthesize=lambda text:synthesize(SpeechRequest(model='dania-gptsovits',input=text,voice='dania')))
+    synthesize=lambda text,voice='dania':synthesize(SpeechRequest(model=__import__('voice_catalog').profile(voice)['model'],input=text,voice=__import__('voice_catalog').profile(voice)['speaker'])))
 from score_routes import register_score_routes
 SCORE_SERVICE=register_score_routes(app,authorize=authorize,lock=LOCK,unload=unload_locked,root=ROOT,artifacts=MUSIC_SERVICE)
 from agent_routes import register_agent_routes

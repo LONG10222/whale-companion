@@ -1,6 +1,6 @@
 <!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>本地语音测试台</title><style>body{max-width:760px;margin:48px auto;padding:0 24px;background:#f7f5f0;color:#26342c;font:16px/1.7 system-ui}section{background:white;border:1px solid #dce4db;border-radius:18px;padding:24px;margin:20px 0}textarea,input,select{box-sizing:border-box;width:100%;padding:12px;font:inherit;border:1px solid #b4c6b5;border-radius:8px;margin:8px 0}button{padding:10px 18px;background:#295b43;color:white;border:0;border-radius:8px;font:inherit;cursor:pointer;margin:8px 8px 8px 0}button:disabled{opacity:.5;cursor:wait}pre{white-space:pre-wrap;font:13px/1.6 monospace}audio{width:100%;margin-top:16px}.note{color:#637064}h1{font-size:30px}</style>
-<h1>本地语音测试台</h1><p><a href="http://127.0.0.1:18766/stickers">本地表情包库 →</a></p><p class="note">仅在这台电脑合成和试听。QQ、微信尚未连接。</p><p><a href="http://127.0.0.1:18766/mobile">打开手机助手：小黑盒阅读与本地草稿 →</a></p>
+<h1>本地语音测试台</h1><p><a href="http://127.0.0.1:18766/stickers">本地表情包库 →</a></p><p class="note">在本机合成和试听。QQ 连接状态与回复范围请在 <a href="http://127.0.0.1:18766/qq">QQ 管理页</a> 查看；微信暂未接入。</p><p><a href="http://127.0.0.1:18766/mobile">打开手机助手：小黑盒阅读与本地草稿 →</a></p>
 <section id="newSinging"><strong>达妮娅中文参考声线 · AI合成清唱</strong>
 <p class="note">沿用已认可的演唱方式，保持原旋律、节奏与时长，换成达妮娅中文参考声线。换声后重新核对唱词、异常中断与旋律保持情况。</p>
 <p>《春晓》· 公版诗词、原创旋律，约22秒<span class="note">请在本机生成后试听。</span></p>
@@ -19,14 +19,15 @@
 </details></details></section>
 <section><strong>达妮娅中文 · 正常口语节奏试听</strong><p class="note">放缓吐字，保留正常断句，只对过长的完全无声间隔做温和限制。三段共用作者提供的一段参考音频，尚未单独控制情绪。</p><p>日常招呼<span class="note">请在本机生成后试听。</span></p><p>轻松打趣<span class="note">请在本机生成后试听。</span></p><p>关心安慰<span class="note">请在本机生成后试听。</span></p></section>
 <section><label>本地访问令牌<input id="token" type="password" placeholder="填写 settings.local.json 中的 api_token；只保存在本页内存"></label>
+<div id="newVoicePreviews"><p class="note">多音色与清唱试听：此处只显示本机已生成的样本，均为AI合成。</p></div>
 <label>本地引擎<select id="engine"><option value="dania-gptsovits">达妮娅中文 · GPT-SoVITS GPU</option><option value="kokoro-cpu">Kokoro CPU · 轻量备选</option><option value="qwen3-tts-local">Qwen3 GPU · 音色对比</option></select></label>
-<label>声音<select id="voice"><option value="dania">达妮娅 · 作者参考音频</option></select></label>
+<label>声音（QQ也可直接说“用Serena温柔女声读这句话”）<select id="voice"><option value="dania">达妮娅 · 作者参考音频</option></select></label>
 <label>要说的话<textarea id="text" rows="3" maxlength="120">今天过得怎么样？忙完了就歇一会儿，想聊什么都可以。</textarea></label>
 <button id="generate">生成并试听</button><button id="unload">释放语音模型显存</button><p id="message" role="status"></p><audio controls id="audio" hidden></audio></section>
 
 <section><details><summary>旧方案 · 已判为不合格</summary><strong>上一版未达标 · 正在更换合成方式</strong><p class="note">旧版只有哼唱，已判定不合格。用户审核仍认为情感、歌词与字音不合格。本版本保留作问题对照，不能作为已达标的声音。正在审核其他合成方式。</p><p>原始演唱（含伴奏）<span class="note">请在本机生成后试听。</span></p><p>达妮娅人声版<span class="note">请在本机生成后试听。</span></p></details></section>
 <section><strong>让 DeepSeek 自己调用工具</strong>
-<p class="note">输入需求后，助手可以搜索资料、按歌词与音符生成清唱并返回音频。默认使用达妮娅中文参考声线，也保留基础演唱对照。声音由 AI 合成。使用上方的本地访问令牌；QQ、微信仍未连接。</p>
+<p class="note">输入需求后，助手可以搜索资料、按歌词与音符生成清唱并返回音频。默认使用达妮娅中文参考声线，也保留基础演唱对照。声音由 AI 合成。通过本机会话连接；本页仅生成和试听，QQ 发送由已授权的聊天入口处理。</p>
 <label>DeepSeek API Key<input id="agentKey" type="password" autocomplete="off" placeholder="仅在本地填写，保存后不回显"></label>
 <button id="saveAgentKey">保存 DeepSeek Key 到本机</button><p id="agentReady" role="status"></p>
 <label>演唱声音<select id="singVoice"><option value="dania" selected>达妮娅中文参考声线 · 默认</option><option value="soulx">SoulX-Singer · 官方示例音色</option><option value="qixuan">绮萱 · DiffSinger 原生歌声</option></select></label>
@@ -54,6 +55,20 @@ let agentPoll;
 async function refreshAgent(){try{const [a,m]=await Promise.all([fetch('/agent/status').then(r=>r.json()),fetch('/score/status').then(r=>r.json())]);el('agentReady').textContent=(a.deepseek_key_configured?'DeepSeek Key 已在本地配置（实际连接以运行结果为准）。':'请在此填写 DeepSeek Key。')+(m.ready?' 本地清唱已就绪（歌词与完整性检查后仍需试听）。':' 新的原生清唱流程正在验证。');el('agentRun').disabled=a.busy||m.busy||!a.deepseek_key_configured||!m.ready;el('agentDemo').disabled=a.busy||m.busy||!m.ready;el('agentTrace').textContent=a.events.filter(e=>e.type==='tool_call'||e.type==='tool_result').map(e=>(e.type==='tool_call'?'进行：':e.result&&e.result.ok===false?'未完成：':'完成：')+(toolNames[e.name]||e.name)+(e.result&&e.result.ok===false?'（未完成：'+e.result.error+'）':'')).join('\n')}catch(e){el('agentReady').textContent='本地服务暂时无法连接。'}}
 el('saveAgentKey').onclick=async()=>{try{const key=el('agentKey').value.trim();await post('/agent/config',{api_key:key});el('agentKey').value='';el('agentMessage').textContent='Key 已保存在本机。点击下方按钮进行实际连接和工具调用测试。';await refreshAgent()}catch(e){el('agentMessage').textContent=e.message}};
 async function runAgent(demo){el('agentRun').disabled=true;el('agentDemo').disabled=true;el('agentMessage').textContent=demo?'正在执行本地工具流程演示，本次不调用 DeepSeek。':'DeepSeek 正在选择并调用工具。';el('agentAudios').replaceChildren();agentPoll=setInterval(refreshAgent,2500);try{const r=await post(demo?'/v1/agent/demo':'/v1/agent/run',demo?{voice:el('singVoice').value}:{message:el('agentPrompt').value+'\n演唱声音：'+el('singVoice').value});const d=await r.json();el('agentMessage').textContent=d.reply;for(const item of d.artifacts||[]){if(!/^[a-f0-9]{32}$/.test(item.artifact_id))continue;const p=document.createElement('p'),a=document.createElement('audio'),link=document.createElement('a');p.textContent=item.voice_reference==='soulx_native'?'SoulX-Singer · AI合成清唱（待试听验收）':item.voice_reference==='qixuan_native'?'绮萱 · DiffSinger · AI合成清唱（待试听验收）':item.voice_reference?'达妮娅参考音色版本':item.vocal_stem_isolated?'分离出的人声':'生成的演唱';a.controls=true;a.src='/artifacts/'+item.artifact_id;link.href=a.src;link.download='演唱.wav';link.textContent='保存 WAV';el('agentAudios').append(p,a,link)}}catch(e){el('agentMessage').textContent=e.message}finally{clearInterval(agentPoll);agentPoll=null;await refreshAgent();status()}}
-el('agentRun').onclick=()=>runAgent(false);el('agentDemo').onclick=()=>runAgent(true);refreshAgent();setInterval(()=>{if(!agentPoll)refreshAgent()},5000);
+el('agentRun').onclick=()=>runAgent(false);el('agentDemo').onclick=()=>runAgent(true);document.addEventListener('DOMContentLoaded',refreshAgent,{once:true});setInterval(()=>{if(!agentPoll)refreshAgent()},5000);
 
 </script></html>
+
+<script>
+window.addEventListener('DOMContentLoaded',async()=>{
+  try{
+    const response=await fetch('/v1/audio/previews');if(!response.ok)return;
+    const data=await response.json(),box=document.getElementById('newVoicePreviews');
+    for(const item of data.items||[]){
+      if(!/^[a-f0-9]{32}$/.test(item.artifact_id))continue;
+      const label=document.createElement('p'),audio=document.createElement('audio');
+      label.textContent=item.title;audio.controls=true;audio.preload='metadata';audio.src='/artifacts/'+item.artifact_id;box.append(label,audio);
+    }
+  }catch(e){}
+});
+</script>

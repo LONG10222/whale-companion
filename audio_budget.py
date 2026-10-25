@@ -20,4 +20,7 @@ def apply(root, script, config):
             result['gpu_memory_fraction'] = max(.1, min(.75, float(settings[fraction])))
         if 'singing_min_free_vram_mib' in settings:
             result['min_free_vram_mib'] = max(6144, int(settings['singing_min_free_vram_mib']))
+    if settings.get('performance_mode')=='full':
+        import os
+        result.update(cpu_threads=max(1,os.cpu_count() or 1),gpu_memory_fraction=.95,performance_mode='full')
     return result

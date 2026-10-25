@@ -167,7 +167,21 @@ class QQBridge:
             return {'accepted':accepted,'message':'已开始读取long最近的视频。' if accepted else '这条视频已处理过、任务较多或回复尚未启用。请稍后检查，或让long重发。'}
         return {'accepted':False,'message':'最近50条消息中没有long发来的视频，请重新发送。'}
     def quoted_context(self,peer,bot,remote_id):
-        if group(peer):return self.groups.quote(group(peer),remote_id)
+        if group(peer):
+            known=self.groups.quote(group(peer),remote_id)
+            if not known.get('missing'):return known
+            try:
+                history=self.call('get_group_msg_history',{'group_id':int(group(peer)),'count':100}) or {}
+                message=next((m for m in history.get('messages',[]) if str(m.get('message_id'))==str(remote_id) and str(m.get('group_id',''))==group(peer)),None)
+                if not message:return {'missing':True}
+                segments=message.get('message',[])
+                if not isinstance(segments,list):return {'missing':True}
+                words=[]
+                for segment in segments:
+                    if segment.get('type')=='text':words.append(segment.get('data',{}).get('text',''))
+                    elif segment.get('type')=='record':words.append(self.chat.records.analyze(segment,self.call,self.event)['text'])
+                return {'text':''.join(words)[:6000],'kind':'image' if any(s.get('type') in {'image','mface'} for s in segments) else 'text','images':[s for s in segments if s.get('type') in {'image','mface'}][:3]}
+            except Exception:return {'missing':True}
         # A quote is resolved only within this exact private conversation and bot.
         with self.chat.memory.learning.db() as db:
             row=db.execute('SELECT local_id FROM channel_deliveries WHERE peer=? AND bot=? AND remote_id=?',(peer,bot,str(remote_id))).fetchone()
@@ -248,7 +262,8 @@ class QQBridge:
             if records:extra['audio_context']={'recognized_count':len(heard),'segments':heard}
             if quoted is not None:
                 reference=self.quoted_context(peer,bot,quoted);extra['quoted_context']={k:v for k,v in reference.items() if k!='images'}
-                if reference.get('images') and not image_segments:image_segments=reference['images']
+                if reference.get('images') and not image_segments:
+                    image_segments=reference['images'];extra['quoted_context']['pixels_bound']=True
             if hasattr(self.chat,'contacts') or getattr(self.chat,'tasks',None) or getattr(self.chat,'creative',None):extra['task_context']=context
             images=[]
             for segment in image_segments or []:

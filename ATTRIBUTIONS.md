@@ -14,6 +14,7 @@
 | CPython | [Python Software Foundation](https://www.python.org/downloads/release/python-31317/) | Verified portable Python for the Windows installer | Downloaded from python.org by the user's installer; not vendored |
 | python-qrcode | [lincolnloop/python-qrcode](https://github.com/lincolnloop/python-qrcode) | Encode the QR returned by QQ's required device-confirmation flow | Dependency only; no vendored implementation |
 | OpenAI Codex | [Official app-server docs](https://learn.chatgpt.com/docs/app-server) | Optional standard-speed scoped Luna work | Client wrapper only |
+| Qwen3-TTS CustomVoice | [QwenLM/Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS), [0.6B model card](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice) | Vivian / Serena / Dylan speaking presets; model card declares Apache-2.0 | Adapter only, no weights or recordings |
 | GPT-SoVITS | [RVC-Boss/GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) | Optional character-reference speech | No upstream runtime or weights |
 | Dania voice reference | [villia/dania on ModelScope](https://modelscope.cn/models/villia/dania) | Local experiments with a Chinese character-inspired voice | No checkpoint or reference audio |
 | SoulX-Singer | [Soul-AILab/SoulX-Singer](https://github.com/Soul-AILab/SoulX-Singer) | Score-driven vocal synthesis | Wrapper only; license notice in `licenses/` |

@@ -16,7 +16,7 @@ def main():
             if target=='cuda':
                 if not torch.cuda.is_available():raise RuntimeError('CUDA is unavailable')
                 if torch.cuda.mem_get_info()[0]<int(cfg.get('min_free_vram_mib',6144))*1024**2:raise RuntimeError('歌声合成需要更多空闲显存，请稍后再试')
-                torch.cuda.set_per_process_memory_fraction(max(.1,min(.75,float(cfg.get('gpu_memory_fraction',.55)))),0)
+                torch.cuda.set_per_process_memory_fraction(max(.1,min(.95 if cfg.get('performance_mode')=='full' else .75,float(cfg.get('gpu_memory_fraction',.55)))),0)
                 ort.preload_dlls(directory=str(Path(torch.__file__).parent/'lib'))
             np.random.seed(cfg.get('seed',20261021));torch.manual_seed(cfg.get('seed',20261021));ort.set_seed(cfg.get('seed',20261021))
             original_open=builtins.open;voice_root=Path(cfg['voice_bank']).resolve()
